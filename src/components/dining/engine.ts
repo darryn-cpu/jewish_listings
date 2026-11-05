@@ -136,40 +136,40 @@ function metaOf(b) {
   return `${cats}${more} · ${b.place}`;
 }
 
-function storefront(b) {
+const sfCache = new Map();
+function awning(n) {
+  const w = 276 / n, r = (w / 2).toFixed(2);
+  let html = '';
+  for (let i = 0; i < n; i++) html += `<path class="${i % 2 ? 'sf-s2' : 'sf-s1'}" d="M${(22 + i * w).toFixed(1)} 77h${w.toFixed(1)}v15a${r} ${r} 0 0 1 -${w.toFixed(1)} 0z"/>`;
+  return html;
+}
+function storefront(b, lite) {
+  const key = (lite ? 'l' : 'f') + b.id;
+  const hit = sfCache.get(key);
+  if (hit) return hit;
   const h = hueOf(b);
   let nm = String(b.name || '').replace(/\s*\([^)]*\)/g, '').trim().toUpperCase();
   if (nm.length > 26) nm = nm.slice(0, 24) + '…';
   const fs = Math.max(8.5, Math.min(15, 232 / (nm.length * .66))), tl = Math.min(232, nm.length * fs * .66);
-  const w = 276 / 14, r = (w / 2).toFixed(2), v = hash(b.id) % 3;
-  let awn = '', bulbs = '';
-  for (let i = 0; i < 14; i++) awn += `<path class="${i % 2 ? 'sf-s2' : 'sf-s1'}" d="M${(22 + i * w).toFixed(1)} 77h${w.toFixed(1)}v15a${r} ${r} 0 0 1 -${w.toFixed(1)} 0z"/>`;
-  for (let i = 0; i < 11; i++) { const t = (i + .5) / 11; bulbs += `<circle class="sf-bulb" style="animation-delay:${((i % 4) * .45).toFixed(2)}s" cx="${(26 + 268 * t).toFixed(1)}" cy="${(17 + 56 * t * (1 - t)).toFixed(1)}" r="2.4"/>`; }
-  const shelf = v === 0
-    ? `<rect class="sf-item" x="206" y="130" width="15" height="20" rx="3"/><rect class="sf-item2" x="231" y="122" width="17" height="28" rx="3"/><rect class="sf-item" x="258" y="134" width="16" height="16" rx="3"/><rect class="sf-shelf" x="202" y="150" width="76" height="3" rx="1.5"/>`
-    : v === 1
-    ? `<circle class="sf-item" cx="218" cy="141" r="9"/><circle class="sf-item2" cx="242" cy="137" r="13"/><circle class="sf-item" cx="266" cy="142" r="8"/><rect class="sf-shelf" x="202" y="150" width="76" height="3" rx="1.5"/>`
-    : `<path class="sf-wire2" d="M216 109v16M242 109v9M268 109v18"/><path class="sf-item" d="M207 136a9 9 0 0 1 18 0z" transform="translate(0 -11)"/><path class="sf-item2" d="M231 128a11 11 0 0 1 22 0z" transform="translate(0 -10)"/><path class="sf-item" d="M259 138a9 9 0 0 1 18 0z" transform="translate(0 -11)"/><rect class="sf-shelf" x="204" y="152" width="72" height="3" rx="1.5"/>`;
   const glyph = ICONS[GLYPH[b.cats[0]]] || ICONS.store;
-  return `<div class="sf" style="--h:${h}"><svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Illustrated storefront: ${esc(b.name)}">
-<g class="sf-stars"><circle cx="14" cy="10" r="1"/><circle cx="52" cy="22" r=".8"/><circle cx="96" cy="8" r="1.1"/><circle cx="214" cy="9" r=".9"/><circle cx="262" cy="26" r="1"/><circle cx="306" cy="8" r=".8"/></g>
-<rect class="sf-bg1" x="-6" y="88" width="34" height="100"/><rect class="sf-bg1" x="294" y="66" width="34" height="122"/>
-<path class="sf-wire" d="M26 17Q160 45 294 17"/>${bulbs}
-<rect class="sf-ground" x="0" y="178" width="320" height="22"/>
-<rect class="sf-wall" x="22" y="34" width="276" height="146" rx="8"/>
-<rect class="sf-sign-bg" x="34" y="42" width="252" height="28" rx="8"/><rect class="sf-sign-line" x="36.5" y="44.5" width="247" height="23" rx="6"/>
-<text class="sf-name" x="160" y="61" text-anchor="middle" font-size="${fs.toFixed(1)}" textLength="${tl.toFixed(0)}" lengthAdjust="spacingAndGlyphs">${esc(nm)}</text>
-<rect class="sf-rail" x="18" y="72" width="284" height="5" rx="2.5"/>${awn}<rect class="sf-shade" x="22" y="93" width="276" height="10"/>
-<rect class="sf-sill" x="30" y="168" width="100" height="5" rx="2.5"/><rect class="sf-sill" x="190" y="168" width="100" height="5" rx="2.5"/>
-<rect class="sf-glass" x="36" y="108" width="88" height="60" rx="8"/><circle class="sf-glow" cx="80" cy="138" r="27"/>
+  const sign = `<rect class="sf-sign-bg" x="34" y="42" width="252" height="28" rx="8"/><rect class="sf-sign-line" x="36.5" y="44.5" width="247" height="23" rx="6"/><text class="sf-name" x="160" y="61" text-anchor="middle" font-size="${fs.toFixed(1)}" textLength="${tl.toFixed(0)}" lengthAdjust="spacingAndGlyphs">${esc(nm)}</text>`;
+  const face = `<rect class="sf-wall" x="22" y="34" width="276" height="146" rx="8"/>${sign}<rect class="sf-rail" x="18" y="72" width="284" height="5" rx="2.5"/>${awning(lite ? 8 : 14)}<rect class="sf-shade" x="22" y="93" width="276" height="10"/>
+<rect class="sf-glass" x="36" y="108" width="88" height="60" rx="8"/>
 <svg class="sf-glyph" x="62" y="120" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${glyph}</svg>
-<path class="sf-shine" d="M44 160L70 108h14L58 160z"/>
-<rect class="sf-glass" x="196" y="108" width="88" height="60" rx="8"/>${shelf}<path class="sf-shine" d="M204 160L230 108h14L218 160z"/>
-<rect class="sf-door" x="136" y="104" width="48" height="76" rx="7"/><rect class="sf-glass" x="142" y="110" width="36" height="38" rx="5"/>
+<rect class="sf-glass" x="196" y="108" width="88" height="60" rx="8"/><rect class="sf-item" x="214" y="128" width="16" height="22" rx="3"/><rect class="sf-item2" x="238" y="120" width="18" height="30" rx="3"/><rect class="sf-shelf" x="206" y="150" width="68" height="3" rx="1.5"/>
+<rect class="sf-door" x="136" y="104" width="48" height="76" rx="7"/><rect class="sf-glass" x="142" y="110" width="36" height="38" rx="5"/><circle class="sf-knob" cx="177" cy="152" r="2.4"/>`;
+  const backdrop = lite ? '' : `<g class="sf-stars"><circle cx="14" cy="10" r="1"/><circle cx="52" cy="22" r=".8"/><circle cx="96" cy="8" r="1.1"/><circle cx="214" cy="9" r=".9"/><circle cx="262" cy="26" r="1"/><circle cx="306" cy="8" r=".8"/></g>
+<rect class="sf-bg1" x="-6" y="88" width="34" height="100"/><rect class="sf-bg1" x="294" y="66" width="34" height="122"/>
+<path class="sf-wire" d="M26 17Q160 45 294 17"/><circle class="sf-bulb" cx="48" cy="22" r="2.4"/><circle class="sf-bulb" cx="110" cy="32" r="2.4"/><circle class="sf-bulb" cx="160" cy="36" r="2.4"/><circle class="sf-bulb" cx="214" cy="32" r="2.4"/><circle class="sf-bulb" cx="276" cy="22" r="2.4"/>
+<rect class="sf-ground" x="0" y="178" width="320" height="22"/>`;
+  const overlay = lite ? '' : `<rect class="sf-sill" x="30" y="168" width="100" height="5" rx="2.5"/><rect class="sf-sill" x="190" y="168" width="100" height="5" rx="2.5"/>
+<circle class="sf-glow" cx="80" cy="138" r="27"/><path class="sf-shine" d="M44 160L70 108h14L58 160z"/><path class="sf-shine" d="M204 160L230 108h14L218 160z"/>
 <rect class="sf-tag" x="149" y="122" width="22" height="10" rx="3"/><text class="sf-tagtxt" x="160" y="129.1" text-anchor="middle" font-size="4.6">KOSHER</text>
-<circle class="sf-knob" cx="177" cy="152" r="2.4"/><rect class="sf-mezz" x="185.5" y="128" width="3.2" height="11" rx="1.4" transform="rotate(10 187 133)"/>
-<rect class="sf-pot" x="8" y="166" width="11" height="14" rx="3"/><circle class="sf-leaf" cx="13.5" cy="158" r="8.5"/><rect class="sf-pot" x="301" y="166" width="11" height="14" rx="3"/><circle class="sf-leaf" cx="306.5" cy="158" r="8.5"/>
-</svg></div>`;
+<rect class="sf-mezz" x="185.5" y="128" width="3.2" height="11" rx="1.4" transform="rotate(10 187 133)"/>
+<rect class="sf-pot" x="8" y="166" width="11" height="14" rx="3"/><circle class="sf-leaf" cx="13.5" cy="158" r="8.5"/><rect class="sf-pot" x="301" y="166" width="11" height="14" rx="3"/><circle class="sf-leaf" cx="306.5" cy="158" r="8.5"/>`;
+  const html = `<div class="sf" style="--h:${h}"><svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Illustrated storefront: ${esc(b.name)}">${backdrop}${face}${overlay}</svg></div>`;
+  sfCache.set(key, html);
+  return html;
 }
 function logo(b, size) {
   const sz = {xs:30, sm:46, md:60, lg:84}[size] || 60;
@@ -220,10 +220,10 @@ function card(b, mode) {
   const flags = kashFlags(b);
   const heart = `<button class="sc-save ${saved ? 'on' : ''}" data-act="save" data-id="${esc(b.id)}" aria-label="${saved ? 'Remove from saved' : 'Save'} ${esc(b.name)}" aria-pressed="${saved}">${ic('heart', 19, saved ? 'filled' : '')}</button>`;
   if (mode === 'h') return `<article class="scard h" ${open}>
-    <div class="sc-thumb">${storefront(b)}</div>
+    <div class="sc-thumb">${storefront(b, true)}</div>
     <div class="sc-main2"><h3 class="biz-name">${esc(b.name)}</h3><div class="biz-meta">${esc(metaOf(b))}</div>${flags ? `<div class="kashrow">${flags}</div>` : ''}</div>
     ${ic('chevR', 18, 'chev')}</article>`;
-  const art = `<div class="sc-art">${storefront(b)}${b.k.h ? `<span class="sc-badge">${ic('star', 12, '', 2)}Mehadrin</span>` : ''}${heart}<span class="sc-logo">${logo(b, 'sm')}</span></div>`;
+  const art = `<div class="sc-art">${storefront(b, true)}${b.k.h ? `<span class="sc-badge">${ic('star', 12, '', 2)}Mehadrin</span>` : ''}${heart}<span class="sc-logo">${logo(b, 'sm')}</span></div>`;
   if (mode === 'feat') return `<article class="scard feat" ${open}>${art}<div class="sc-body"><h3 class="biz-name">${esc(b.name)}</h3><div class="biz-meta">${esc(metaOf(b))}</div><div class="sc-foot">${flags || `<span class="recs">${esc(b.place)}</span>`}</div></div></article>`;
   return `<article class="scard" ${open}>${art}<div class="sc-body"><h3 class="biz-name">${esc(b.name)}</h3><div class="biz-meta">${esc(metaOf(b))}</div><p class="biz-story">${esc(storyOf(b))}</p><div class="sc-foot"><span class="jo">${ic('star', 11, '', 2)}Kosher listing</span>${flags ? `<span class="kashrow">${flags}</span>` : ''}</div></div></article>`;
 }
@@ -542,14 +542,20 @@ function render(opts) {
   if (e.n === 'biz') spy();
   if (opts.after) opts.after();
 }
+let spyRaf = 0, spyOn = '';
 function spy() {
-  const nv = $('#msnav'); if (!nv) return;
-  const view = $('#view'), vt = view.getBoundingClientRect().top, nh = nv.offsetHeight;
-  const art = $('.ms-sf'); if (art) art.style.setProperty('--py', Math.min(view.scrollTop * .14, 22).toFixed(1));
-  let active = null;
-  $$('.ms-sec').forEach(s => { if (s.getBoundingClientRect().top - vt - nh - 28 <= 0) active = s.id; });
-  if (!active) active = 'ms-about';
-  $$('button', nv).forEach(b => b.classList.toggle('on', b.dataset.v === active));
+  if (spyRaf) return;
+  spyRaf = requestAnimationFrame(() => {
+    spyRaf = 0;
+    if (dead) return;
+    const nv = $('#msnav'); if (!nv) return;
+    const view = $('#view'), vt = view.getBoundingClientRect().top, nh = nv.offsetHeight;
+    let active = 'ms-about';
+    $$('.ms-sec').forEach(s => { if (s.getBoundingClientRect().top - vt - nh - 28 <= 0) active = s.id; });
+    if (active === spyOn) return;
+    spyOn = active;
+    $$('button', nv).forEach(b => b.classList.toggle('on', b.dataset.v === active));
+  });
 }
 function jumpTo(id) {
   const s = $('#' + id), view = $('#view'), nv = $('#msnav'); if (!s) return;
@@ -709,6 +715,7 @@ on(document, 'input', ev => {
   return () => {
     dead = true
     listeners.forEach((fn) => fn())
+    cancelAnimationFrame(spyRaf)
     clearTimeout(toastT)
     clearTimeout(exitT)
   }
