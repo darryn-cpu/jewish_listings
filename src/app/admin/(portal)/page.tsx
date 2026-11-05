@@ -26,17 +26,27 @@ export default async function QueuePage({
     listQueue(parseQueueQuery(params)),
     getSession(),
   ])
-  const cards = [
-    ["Applications", stats.total],
-    ["Pending", stats.pending],
-    ["Approved", stats.approved],
-    ["Disabled", stats.disabled],
-    ["Needs info", stats.requiresInfo],
-    ["Johannesburg", stats.johannesburg],
-    ["Cape Town", stats.capeTown],
-    ["Kosher", stats.kosher],
-    ["Rejected", stats.rejected],
+  const activeStatus = params.get("status") ?? ""
+  const cards: Array<{ label: string; value: number; status?: string }> = [
+    { label: "Applications", value: stats.total, status: "" },
+    { label: "Pending", value: stats.pending, status: "PENDING_REVIEW" },
+    { label: "Approved", value: stats.approved, status: "APPROVED" },
+    { label: "Disabled", value: stats.disabled, status: "DISABLED" },
+    { label: "Needs info", value: stats.requiresInfo, status: "REQUIRES_INFO" },
+    { label: "Johannesburg", value: stats.johannesburg },
+    { label: "Cape Town", value: stats.capeTown },
+    { label: "Kosher", value: stats.kosher },
+    { label: "Rejected", value: stats.rejected, status: "REJECTED" },
   ]
+
+  function filterHref(status: string) {
+    const next = new URLSearchParams(params)
+    next.delete("page")
+    if (status) next.set("status", status)
+    else next.delete("status")
+    const query = next.toString()
+    return query ? `/admin?${query}` : "/admin"
+  }
 
   return (
     <main className="page">
@@ -45,14 +55,31 @@ export default async function QueuePage({
         <h1>Review queue</h1>
       </div>
       <section className="stats">
-        {cards.map(([label, value]) => (
-          <article className="stat" key={label}>
-            <span className="tiny">{label}</span>
-            <b>{value}</b>
-          </article>
-        ))}
+        {cards.map((card) => {
+          if (card.status === undefined) {
+            return (
+              <article className="stat" key={card.label}>
+                <span className="tiny">{card.label}</span>
+                <b>{card.value}</b>
+              </article>
+            )
+          }
+          const active = activeStatus === card.status
+          return (
+            <Link
+              className={active ? "stat is-active" : "stat"}
+              href={filterHref(card.status)}
+              key={card.label}
+              aria-current={active ? "true" : undefined}
+            >
+              <span className="tiny">{card.label}</span>
+              <b>{card.value}</b>
+              <LinkPending overlay label="Filtering" />
+            </Link>
+          )
+        })}
       </section>
-      <NavForm className="panel" action="/admin" current={params.toString()}>
+      <NavForm key={params.toString()} className="panel" action="/admin" current={params.toString()}>
         <label className="field"><span>Search</span><input name="q" defaultValue={params.get("q") ?? ""} placeholder="Name or reference" /></label>
         <div className="form-grid two">
           <label className="field">

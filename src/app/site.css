@@ -266,6 +266,15 @@ body:has(.site) { background: var(--bg); }
 /* ---------- stats, audit, tokens ---------- */
 .site .stats { gap: 10px; }
 .site .stat { border-radius: 22px; padding: 14px; }
+.site a.stat {
+  display: block;
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.site a.stat.is-active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+@media (hover: hover) { .site a.stat:hover { border-color: var(--accent-line); } }
 .site .stat .tiny { font-weight: 600; }
 .site .stat b { font: 800 28px/1.1 var(--display); letter-spacing: -0.04em; margin-top: 2px; }
 .site .audit article { padding-top: 12px; display: grid; gap: 4px; }
