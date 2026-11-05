@@ -64,14 +64,21 @@
 .phone .uchip{flex:none;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px 0 12px;border-radius:19px;border:1px solid var(--line-2);background:var(--glass-2);font:700 12.5px var(--sans);cursor:pointer;color:var(--text)}
 .phone .uchip.on{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:var(--accent-ink);border-color:transparent;padding:0 13px 0 4px}
 .phone .uchip .av{width:30px;height:30px;border-radius:50%;background:var(--accent-ink);color:var(--accent);display:grid;place-items:center;font:800 11px var(--sans);letter-spacing:.02em}
+.phone .citybar{margin-top:8px;display:flex;animation:tabIn .3s var(--ease) backwards}
+.phone .citypill{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px 0 14px;max-width:100%;border:0;border-radius:19px;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:var(--accent-ink);font:700 13.5px var(--sans);cursor:pointer;box-shadow:0 8px 18px -8px rgba(255,160,30,.75);transition:transform .2s var(--spring)}
+.phone .citypill:active{transform:scale(.95)}
+.phone .citypill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phone .citypill .cv{opacity:.7}
 .phone .cityseg{display:grid;grid-template-columns:1fr 1fr;background:var(--glass-2);border:1px solid var(--line);border-radius:18px;padding:3px;margin-top:8px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .phone .cityseg button{border:0;background:transparent;height:36px;border-radius:15px;font:700 13px var(--sans);color:var(--text-2);display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .3s var(--ease),color .25s,box-shadow .3s}
 .phone .cityseg button.on{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:var(--accent-ink);box-shadow:0 8px 18px -8px rgba(255,160,30,.75)}
 
 /* ---------- scroll area & transitions ---------- */
-.phone .scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;z-index:1}
+.phone .scroll{flex:1;min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;z-index:1}
 .phone .scroll::-webkit-scrollbar{display:none}
-.phone .page{min-height:100%;padding-bottom:120px}
+/* The site-wide .page rule is a grid with an auto column, which grows to the widest nowrap child and pushes cards off the right edge. Pin it to the screen width. */
+.phone .page{min-height:100%;padding-bottom:120px;width:100%;max-width:100%;grid-template-columns:minmax(0,1fr)}
+.phone .page>*,.phone .stack>*,.phone .grid>*{min-width:0;max-width:100%}
 .phone .pad{padding-left:18px;padding-right:18px}
 .phone .a-push{animation:pushIn .42s var(--ease) backwards}
 .phone .a-pop{animation:popIn .34s var(--ease) backwards}
@@ -192,7 +199,7 @@
 
 /* ---------- cards & logos ---------- */
 .phone .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
-.phone .stack{display:grid;gap:16px}
+.phone .stack{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 .phone .stack.compact{gap:12px}
 .phone .logo{--sz:56px;--h:40;width:var(--sz);height:var(--sz);flex:none;border-radius:calc(var(--sz)*.32);display:grid;place-items:center;position:relative}
 .phone .logo-ok{background:linear-gradient(145deg,hsl(var(--h) 88% 60%),hsl(calc(var(--h) + 26) 75% 34%));color:#fff;box-shadow:0 0 0 2.5px var(--surface),0 12px 22px -8px hsl(var(--h) 85% 40% / .9)}
@@ -304,7 +311,7 @@
 .phone .hero .quick{margin-top:14px}
 .phone .rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 18px 18px;scroll-padding:0 18px;scrollbar-width:none}
 .phone .rail::-webkit-scrollbar{display:none}
-.phone .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.phone .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .phone .tile{--h:40;position:relative;overflow:hidden;text-align:left;border:1px solid hsl(var(--h) 80% 60% / .3);background:linear-gradient(155deg,hsl(var(--h) 88% 58% / .26),hsl(var(--h) 70% 40% / .05) 72%),var(--surface);border-radius:28px;padding:16px;display:flex;flex-direction:column;gap:4px;min-height:182px;cursor:pointer;color:var(--text);font-family:var(--sans);box-shadow:var(--shadow);transition:transform .3s var(--ease),border-color .3s}
 .phone .tile:active{transform:scale(.975)}
 @media (hover:hover){.phone .tile:hover{transform:translateY(-3px);border-color:hsl(var(--h) 90% 65% / .6)}}

@@ -76,6 +76,9 @@ p { margin: 0; }
 .filters, .form-grid { display: grid; gap: 12px; }
 .field { display: grid; gap: 6px; }
 .field span { font-size: 0.92rem; font-weight: 650; }
+.field.bad input, .field.bad select, .field.bad textarea { border-color: var(--err); }
+.ferr { color: var(--err); font-size: 0.85rem; font-weight: 650; }
+.check.bad { color: var(--err); }
 input, select, textarea {
   width: 100%;
   border: 1px solid var(--line);

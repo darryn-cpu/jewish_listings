@@ -29,9 +29,32 @@ const emptyLocation = (): LocationDraft => ({
 
 const steps = ["Identity", "Operations", "Category", "Ownership", "Kosher", "Consent"]
 
+const stepOfSection: Record<string, number> = {
+  identity: 0,
+  operations: 1,
+  categorization: 2,
+  ownership: 3,
+  kosher: 4,
+  legal: 5,
+}
+
+type FieldIssue = { path: Array<string | number>; message: string }
+
+function readIssues(details: unknown): FieldIssue[] {
+  const issues = (details as { issues?: unknown } | null)?.issues
+  if (!Array.isArray(issues)) return []
+  return issues.flatMap((issue) => {
+    if (!issue || typeof issue !== "object") return []
+    const message = "message" in issue && typeof issue.message === "string" ? issue.message : ""
+    const path = "path" in issue && Array.isArray(issue.path) ? issue.path.filter((part) => typeof part === "string" || typeof part === "number") : []
+    return message ? [{ path, message }] : []
+  })
+}
+
 export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   const [step, setStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [issues, setIssues] = useState<FieldIssue[]>([])
   const [pending, setPending] = useState(false)
   const [receipt, setReceipt] = useState<{ refCode: string; statusToken: string } | null>(null)
   const [legalName, setLegalName] = useState("")
@@ -74,6 +97,10 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   const industry = metadata.industries.find((item) => item.id === industryId) ?? metadata.industries[0]
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
+  function issueFor(path: string) {
+    return issues.find((issue) => issue.path.map(String).join(".") === path)?.message
+  }
+
   function updateLocation(index: number, patch: Partial<LocationDraft>) {
     setLocations((current) => current.map((location, locationIndex) => (locationIndex === index ? { ...location, ...patch } : location)))
   }
@@ -99,11 +126,13 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   async function submit() {
     const problem = validateStep()
     if (problem) {
+      setIssues([])
       setError(problem)
       return
     }
     setPending(true)
     setError(null)
+    setIssues([])
     const turnstileToken = (document.querySelector<HTMLTextAreaElement>("[name='cf-turnstile-response']")?.value) || undefined
     const response = await fetch("/api/v1/applications", {
       method: "POST",
@@ -150,7 +179,15 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
     const body = await response.json()
     setPending(false)
     if (!response.ok) {
-      setError(body.error?.message ?? "The application could not be submitted.")
+      const found = readIssues(body.error?.details)
+      setIssues(found)
+      const messages = [...new Set(found.map((issue) => issue.message))]
+      setError(messages.join("\n") || body.error?.message || "The application could not be submitted.")
+      const stepsHit = found.flatMap((issue) => {
+        const index = stepOfSection[String(issue.path[0])]
+        return index == null ? [] : [index]
+      })
+      if (stepsHit.length) setStep(Math.min(...stepsHit))
       return
     }
     setReceipt({ refCode: body.refCode, statusToken: body.statusToken })
@@ -169,14 +206,14 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   }
 
   return (
-    <section className="panel">
+    <section className="panel" spellCheck={false}>
       <div className="steps" aria-hidden="true">{steps.map((label, index) => <i className={index <= step ? "on" : ""} key={label} />)}</div>
       <p className="kicker">Step {step + 1} of {steps.length}</p>
       <h1>{steps[step]}</h1>
       {step === 0 ? (
         <div className="stack">
-          <label className="field"><span>Legal name</span><input value={legalName} onChange={(event) => setLegalName(event.target.value)} /></label>
-          <label className="field"><span>Trading name</span><input value={tradingName} onChange={(event) => setTradingName(event.target.value)} /></label>
+          <Field path="identity.legalName" label="Legal name" issue={issueFor("identity.legalName")}><input value={legalName} onChange={(event) => setLegalName(event.target.value)} /></Field>
+          <Field path="identity.tradingName" label="Trading name" issue={issueFor("identity.tradingName")}><input value={tradingName} onChange={(event) => setTradingName(event.target.value)} /></Field>
           <label className="field">
             <span>Legal entity</span>
             <select value={registrationType} onChange={(event) => setRegistrationType(event.target.value as RegistrationType)}>
@@ -185,11 +222,11 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
           </label>
           {registrationType === "CIPC_REGISTERED_COMPANY" ? (
             <>
-              <label className="field"><span>CIPC number</span><input value={cipcNumber} onChange={(event) => setCipcNumber(event.target.value)} placeholder="2020/123456/07" /></label>
-              <UploadField purpose="CIPC" label="CIPC document" onUploaded={setCipcUploadId} />
+              <Field path="identity.cipcNumber" label="CIPC number" issue={issueFor("identity.cipcNumber")}><input value={cipcNumber} onChange={(event) => setCipcNumber(event.target.value)} placeholder="2020/123456/07" /></Field>
+              <UploadField purpose="CIPC" label="CIPC document" issue={issueFor("identity.cipcUploadId")} onUploaded={setCipcUploadId} />
             </>
           ) : null}
-          <UploadField purpose="ADDRESS" label="Proof of address" onUploaded={setProofOfAddressUploadId} />
+          <UploadField purpose="ADDRESS" label="Proof of address" issue={issueFor("identity.proofOfAddressUploadId")} onUploaded={setProofOfAddressUploadId} />
         </div>
       ) : null}
       {step === 1 ? (
@@ -212,24 +249,24 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
               </select>
             </label>
           </div>
-          <label className="field"><span>Website</span><input value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://" /></label>
-          <label className="field"><span>Contact name</span><input value={contactName} onChange={(event) => setContactName(event.target.value)} /></label>
-          <label className="field"><span>Phone</span><input value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} inputMode="tel" /></label>
-          <label className="field"><span>Email</span><input value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} inputMode="email" /></label>
+          <Field path="operations.websiteUrl" label="Website" issue={issueFor("operations.websiteUrl")}><input value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://" /></Field>
+          <Field path="operations.contactName" label="Contact name" issue={issueFor("operations.contactName")}><input value={contactName} onChange={(event) => setContactName(event.target.value)} /></Field>
+          <Field path="operations.contactPhone" label="Phone" issue={issueFor("operations.contactPhone")}><input value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} inputMode="tel" /></Field>
+          <Field path="operations.contactEmail" label="Email" issue={issueFor("operations.contactEmail")}><input value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} inputMode="email" /></Field>
           <div className="locations">
             {locations.map((location, index) => (
               <div className="location" key={index}>
-                <label className="field"><span>Branch name</span><input value={location.branchName} onChange={(event) => updateLocation(index, { branchName: event.target.value })} /></label>
-                <label className="field"><span>Street address</span><input value={location.addressLine1} onChange={(event) => updateLocation(index, { addressLine1: event.target.value })} /></label>
-                <label className="field"><span>Address line 2</span><input value={location.addressLine2} onChange={(event) => updateLocation(index, { addressLine2: event.target.value })} /></label>
-                <label className="field"><span>Suburb</span><input value={location.suburb} onChange={(event) => updateLocation(index, { suburb: event.target.value })} /></label>
+                <Field path={`operations.locations.${index}.branchName`} label="Branch name" issue={issueFor(`operations.locations.${index}.branchName`)}><input value={location.branchName} onChange={(event) => updateLocation(index, { branchName: event.target.value })} /></Field>
+                <Field path={`operations.locations.${index}.addressLine1`} label="Street address" issue={issueFor(`operations.locations.${index}.addressLine1`)}><input value={location.addressLine1} onChange={(event) => updateLocation(index, { addressLine1: event.target.value })} /></Field>
+                <Field path={`operations.locations.${index}.addressLine2`} label="Address line 2" issue={issueFor(`operations.locations.${index}.addressLine2`)}><input value={location.addressLine2} onChange={(event) => updateLocation(index, { addressLine2: event.target.value })} /></Field>
+                <Field path={`operations.locations.${index}.suburb`} label="Suburb" issue={issueFor(`operations.locations.${index}.suburb`)}><input value={location.suburb} onChange={(event) => updateLocation(index, { suburb: event.target.value })} /></Field>
                 <label className="field">
                   <span>City</span>
                   <select value={location.city} onChange={(event) => updateLocation(index, { city: event.target.value as LocationDraft["city"] })}>
                     {Object.entries(CITY_LABEL).filter(([value]) => value !== "OTHER").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </label>
-                <label className="field"><span>Postal code</span><input value={location.postalCode} onChange={(event) => updateLocation(index, { postalCode: event.target.value })} inputMode="numeric" /></label>
+                <Field path={`operations.locations.${index}.postalCode`} label="Postal code" issue={issueFor(`operations.locations.${index}.postalCode`)}><input value={location.postalCode} onChange={(event) => updateLocation(index, { postalCode: event.target.value })} inputMode="numeric" /></Field>
                 <label className="check">
                   <input
                     type="radio"
@@ -265,10 +302,10 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
               </label>
             ))}
           </div>
-          <label className="field">
-            <span>Short description ({customDescription.length}/250)</span>
+          {issueFor("categorization.tagIds") ? <p className="ferr">{issueFor("categorization.tagIds")}</p> : null}
+          <Field path="categorization.customDescription" label={`Short description (${customDescription.length}/250)`} issue={issueFor("categorization.customDescription")}>
             <textarea maxLength={250} value={customDescription} onChange={(event) => setCustomDescription(event.target.value)} />
-          </label>
+          </Field>
         </div>
       ) : null}
       {step === 3 ? (
@@ -277,20 +314,19 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
             <span>Jewish ownership ({ownership}%)</span>
             <input type="range" min={1} max={100} value={ownership} onChange={(event) => setOwnership(Number(event.target.value))} />
           </label>
-          <label className="field">
-            <span>Synagogue</span>
+          <Field path="ownership.synagogueId" label="Synagogue" issue={issueFor("ownership.synagogueId")}>
             <select value={synagogueChoice} onChange={(event) => setSynagogueChoice(event.target.value)}>
               <option value="">Choose</option>
               {metadata.synagogues.map((synagogue) => <option key={synagogue.id} value={synagogue.id}>{synagogue.name} · {CITY_LABEL[synagogue.city]}</option>)}
               <option value="other">Other</option>
             </select>
-          </label>
+          </Field>
           {synagogueChoice === "other" ? (
-            <label className="field"><span>Synagogue name</span><input value={synagogueOtherName} onChange={(event) => setSynagogueOtherName(event.target.value)} /></label>
+            <Field path="ownership.synagogueOtherName" label="Synagogue name" issue={issueFor("ownership.synagogueOtherName")}><input value={synagogueOtherName} onChange={(event) => setSynagogueOtherName(event.target.value)} /></Field>
           ) : null}
-          <label className="field"><span>Rabbi name</span><input value={rabbiContactName} onChange={(event) => setRabbiContactName(event.target.value)} /></label>
-          <label className="field"><span>Rabbi phone</span><input value={rabbiContactPhone} onChange={(event) => setRabbiContactPhone(event.target.value)} inputMode="tel" /></label>
-          <UploadField purpose="JEWISH_PROOF" label="Rabbinical letter or ketubah" onUploaded={setJewishProofUploadId} />
+          <Field path="ownership.rabbiContactName" label="Rabbi name" issue={issueFor("ownership.rabbiContactName")}><input value={rabbiContactName} onChange={(event) => setRabbiContactName(event.target.value)} /></Field>
+          <Field path="ownership.rabbiContactPhone" label="Rabbi phone" issue={issueFor("ownership.rabbiContactPhone")}><input value={rabbiContactPhone} onChange={(event) => setRabbiContactPhone(event.target.value)} inputMode="tel" /></Field>
+          <UploadField purpose="JEWISH_PROOF" label="Rabbinical letter or ketubah" issue={issueFor("ownership.jewishProofUploadId")} onUploaded={setJewishProofUploadId} />
         </div>
       ) : null}
       {step === 4 ? (
@@ -298,9 +334,9 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
           <label className="check"><input type="checkbox" checked={offersKosher} onChange={(event) => setOffersKosher(event.target.checked)} /> This business has a kosher brand</label>
           {offersKosher ? (
             <>
-              <label className="field"><span>Brand</span><input value={brandName} onChange={(event) => setBrandName(event.target.value)} /></label>
-              <label className="field"><span>Beth Din certificate number</span><input value={bethDinCertNumber} onChange={(event) => setBethDinCertNumber(event.target.value)} /></label>
-              <UploadField purpose="BETH_DIN" label="Kashrut certificate" onUploaded={setCertUploadId} />
+              <Field path="kosher.brandName" label="Brand" issue={issueFor("kosher.brandName")}><input value={brandName} onChange={(event) => setBrandName(event.target.value)} /></Field>
+              <Field path="kosher.bethDinCertNumber" label="Beth Din certificate number" issue={issueFor("kosher.bethDinCertNumber")}><input value={bethDinCertNumber} onChange={(event) => setBethDinCertNumber(event.target.value)} /></Field>
+              <UploadField purpose="BETH_DIN" label="Kashrut certificate" issue={issueFor("kosher.certUploadId")} onUploaded={setCertUploadId} />
               <label className="check"><input type="checkbox" checked={allowsBulkOrdering} onChange={(event) => setAllowsBulkOrdering(event.target.checked)} /> Wholesale or bulk purchasing</label>
               <label className="check"><input type="checkbox" checked={meat} onChange={(event) => setMeat(event.target.checked)} /> Meat</label>
               <label className="check"><input type="checkbox" checked={dairy} onChange={(event) => setDairy(event.target.checked)} /> Dairy</label>
@@ -314,17 +350,25 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
       {step === 5 ? (
         <div className="stack">
           <label className="check"><input type="checkbox" checked={offersDiscount} onChange={(event) => setOffersDiscount(event.target.checked)} /> Offer a community discount</label>
-          {offersDiscount ? <label className="field"><span>Discount terms</span><textarea value={discountDetails} onChange={(event) => setDiscountDetails(event.target.value)} /></label> : null}
-          <label className="check"><input type="checkbox" checked={consentAccepted} onChange={(event) => setConsentAccepted(event.target.checked)} /> I consent to publishing the approved listing in the directory.</label>
-          <label className="check"><input type="checkbox" checked={accuracyDeclared} onChange={(event) => setAccuracyDeclared(event.target.checked)} /> I declare that the information and documents are accurate.</label>
+          {offersDiscount ? (
+            <Field path="legal.discountDetails" label="Discount terms" issue={issueFor("legal.discountDetails")}>
+              <textarea value={discountDetails} onChange={(event) => setDiscountDetails(event.target.value)} />
+            </Field>
+          ) : null}
+          <label className={issueFor("legal.consentAccepted") ? "check bad" : "check"}><input type="checkbox" checked={consentAccepted} onChange={(event) => setConsentAccepted(event.target.checked)} /> I consent to publishing the approved listing in the directory.</label>
+          <label className={issueFor("legal.accuracyDeclared") ? "check bad" : "check"}><input type="checkbox" checked={accuracyDeclared} onChange={(event) => setAccuracyDeclared(event.target.checked)} /> I declare that the information and documents are accurate.</label>
           {siteKey ? <Turnstile siteKey={siteKey} /> : <p className="tiny">Bot check is off in this environment.</p>}
         </div>
       ) : null}
-      {error ? <p className="alert" role="alert">{error}</p> : null}
+      {error ? (
+        <div className="alert" role="alert">
+          {error.split("\n").map((line) => <p key={line}>{line}</p>)}
+        </div>
+      ) : null}
       <div className="row">
-        {step > 0 ? <button className="btn" type="button" onClick={() => { setError(null); setStep((current) => current - 1) }}>Back</button> : null}
+        {step > 0 ? <button className="btn" type="button" onClick={() => { setError(null); setIssues([]); setStep((current) => current - 1) }}>Back</button> : null}
         {step < steps.length - 1 ? (
-          <button className="btn-primary" type="button" onClick={() => { const problem = validateStep(); setError(problem); if (!problem) setStep((current) => current + 1) }}>Continue</button>
+          <button className="btn-primary" type="button" onClick={() => { const problem = validateStep(); setIssues([]); setError(problem); if (!problem) setStep((current) => current + 1) }}>Continue</button>
         ) : (
           <button className="btn-primary" type="button" disabled={pending} onClick={submit}>{pending ? "Submitting" : "Submit application"}</button>
         )}
@@ -333,7 +377,17 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   )
 }
 
-function UploadField({ purpose, label, onUploaded }: { purpose: string; label: string; onUploaded: (id: string) => void }) {
+function Field({ label, issue, children }: { path: string; label: string; issue?: string; children: React.ReactNode }) {
+  return (
+    <label className={issue ? "field bad" : "field"}>
+      <span>{label}</span>
+      {children}
+      {issue ? <span className="ferr">{issue}</span> : null}
+    </label>
+  )
+}
+
+function UploadField({ purpose, label, issue, onUploaded }: { purpose: string; label: string; issue?: string; onUploaded: (id: string) => void }) {
   const [name, setName] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -369,10 +423,11 @@ function UploadField({ purpose, label, onUploaded }: { purpose: string; label: s
   }
 
   return (
-    <label className="field">
+    <label className={issue ? "field bad" : "field"}>
       <span>{label}</span>
       <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => onFile(event.target.files?.[0])} />
       {name ? <span className="tiny">{busy ? "Uploading" : `Uploaded ${name}`}</span> : null}
+      {issue ? <span className="ferr">{issue}</span> : null}
       {message ? <span className="alert">{message}</span> : null}
     </label>
   )

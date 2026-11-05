@@ -18,7 +18,7 @@ const ICONS = {
   grid:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/>',
   heart:'<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
-  chevR:'<path d="M9 5l7 7-7 7"/>', chevL:'<path d="M15 5l-7 7 7 7"/>',
+  chevR:'<path d="M9 5l7 7-7 7"/>', chevL:'<path d="M15 5l-7 7 7 7"/>', chevD:'<path d="M6 9l6 6 6-6"/>',
   close:'<path d="M6 6l12 12M18 6L6 18"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
@@ -176,18 +176,20 @@ function logo(b, size) {
   return `<div class="logo logo-ok" style="--sz:${sz}px;--h:${hueOf(b)}"><span>${esc(initials(b.name) || '•')}</span></div>`;
 }
 
-const S = { view:'cards', city:'All', kash:[], saved:[], recent:[], search:{q:'', tag:null} };
+const S = { view:'cards', city:'All', pick:false, geo:false, cityOpen:false, kash:[], saved:[], recent:[], search:{q:'', tag:null} };
 try {
   const saved = JSON.parse(localStorage.getItem('jyp-shopping-dining') || 'null');
   if (saved) {
     if (CITIES.includes(saved.city)) S.city = saved.city;
+    S.pick = saved.pick === true;
+    S.geo = saved.geo === true;
     if (saved.view === 'list' || saved.view === 'cards') S.view = saved.view;
     if (Array.isArray(saved.kash)) S.kash = saved.kash.filter(k => KASH.some(x => x[0] === k));
     if (Array.isArray(saved.saved)) S.saved = saved.saved.filter(id => bizById(id));
     if (Array.isArray(saved.recent)) S.recent = saved.recent.slice(0, 6);
   }
 } catch (e) {}
-const persist = () => { try { localStorage.setItem('jyp-shopping-dining', JSON.stringify({view:S.view, city:S.city, kash:S.kash, saved:S.saved, recent:S.recent})); } catch (e) {} };
+const persist = () => { try { localStorage.setItem('jyp-shopping-dining', JSON.stringify({view:S.view, city:S.city, pick:S.pick, geo:S.geo, kash:S.kash, saved:S.saved, recent:S.recent})); } catch (e) {} };
 
 const nav = {tab:'browse', dir:'tab', stacks:{
   browse:[{n:'browse', p:{}}], search:[{n:'search', p:{}}], saved:[{n:'saved', p:{}}], about:[{n:'about', p:{}}]
@@ -195,9 +197,16 @@ const nav = {tab:'browse', dir:'tab', stacks:{
 const SCREENS = {}, A = {}, INPUTS = {};
 const stack = () => nav.stacks[nav.tab];
 const cur = () => stack()[stack().length - 1];
-function push(n, p) { stack().push({n, p:p || {}}); nav.dir = 'push'; render(); }
+function push(n, p) { ensureGuard(); stack().push({n, p:p || {}}); nav.dir = 'push'; render(); }
 function back() { const s = stack(); if (s.length > 1) { s.pop(); nav.dir = 'pop'; render(); } }
+// One step back for the system back button / gesture: close a screen, then return to Browse.
+function stepBack() {
+  if (stack().length > 1) { stack().pop(); nav.dir = 'pop'; render(); return true; }
+  if (nav.tab !== 'browse') { nav.tab = 'browse'; nav.dir = 'tab'; render(); return true; }
+  return false;
+}
 function goTab(t) {
+  ensureGuard();
   if (nav.tab === t) {
     const s = nav.stacks[t];
     if (s.length > 1) { s.length = 1; nav.dir = 'pop'; render(); }
@@ -467,8 +476,54 @@ function headerHTML(e) {
   if (root) left = `<div class="brand">${MARK(32)}<div><div class="word">Jewish <b>Yellow</b> Pages</div><div class="subline">Shopping &amp; dining</div></div></div>`;
   else { const t = titleOf(e); left = `<div class="brand"><button class="backbtn" data-act="back" aria-label="Back">${ic('chevL', 20)}</button><div class="ttl"><div class="ttl-main">${esc(t.title)}</div><div class="ttl-sub">${esc(t.sub)}</div></div></div>`; }
   const showCity = ['browse', 'search', 'saved', 'about', 'district'].includes(e.n);
-  const city = showCity ? `<div class="cityseg" role="tablist" aria-label="Place">${CITIES.map(c => `<button class="${S.city === c ? 'on' : ''}" data-act="city" data-v="${c}" role="tab" aria-selected="${S.city === c}">${ic('pin', 13)}${c === 'Other' ? 'Other' : c}</button>`).join('')}</div>` : '';
-  return `<div class="bar1">${left}</div>${city}`;
+  return `<div class="bar1">${left}</div>${showCity ? cityHTML() : ''}`;
+}
+// With a known location only the pill for the current place is shown; tap it to pick another.
+function cityHTML() {
+  if (S.geo && !S.cityOpen) {
+    const label = cityLabel(S.city);
+    return `<div class="citybar"><button class="citypill" data-act="cityopen" aria-expanded="false" aria-label="Place: ${esc(label)}. Change place">${ic('pin', 14)}<span>${esc(label)}</span>${ic('chevD', 14, 'cv', 2.2)}</button></div>`;
+  }
+  return `<div class="cityseg" role="tablist" aria-label="Place">${CITIES.map(c => `<button class="${S.city === c ? 'on' : ''}" data-act="city" data-v="${c}" role="tab" aria-selected="${S.city === c}">${ic('pin', 13)}${c === 'Other' ? 'Other' : c}</button>`).join('')}</div>`;
+}
+const HUBS = [['Johannesburg', -26.2041, 28.0473], ['Cape Town', -33.9249, 18.4241]];
+function kmBetween(la1, lo1, la2, lo2) {
+  const r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
+function cityFromCoords(lat, lng) {
+  let best = 'Other', bd = 90;
+  HUBS.forEach(([name, la, lo]) => { const d = kmBetween(lat, lng, la, lo); if (d < bd) { bd = d; best = name; } });
+  return best;
+}
+let dead = false;
+function refreshBar() { const bar = $('#appbar'); if (bar) bar.innerHTML = headerHTML(cur()); }
+function locate() {
+  if (!('geolocation' in navigator)) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (dead) return;
+    const c = cityFromCoords(pos.coords.latitude, pos.coords.longitude);
+    const change = !S.pick && S.city !== c;
+    S.geo = true;
+    if (change) S.city = c;
+    persist();
+    if (change) render({keep: true}); else refreshBar();
+  }, err => {
+    if (dead || !err || err.code !== 1) return;
+    S.geo = false; S.cityOpen = false; persist(); refreshBar();
+  }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 30 * 60 * 1000});
+}
+function startLocating() {
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({name: 'geolocation'}).then(r => {
+        if (r.state === 'denied') { if (S.geo) { S.geo = false; persist(); refreshBar(); } } else locate();
+      }, locate);
+      return;
+    }
+  } catch (e) {}
+  locate();
 }
 const TABS = [['browse', 'Browse', 'grid'], ['search', 'Search', 'search'], ['saved', 'Saved', 'heart'], ['about', 'Guide', 'info']];
 function renderTabs() {
@@ -502,10 +557,10 @@ function jumpTo(id) {
   view.scrollTo({top: Math.max(0, top), behavior: 'smooth'});
 }
 let toastT = null;
-function toast(msg) {
+function toast(msg, icon) {
   const t = $('#toast');
   t.className = 'toast';
-  t.innerHTML = `${ic('check', 17, '', 2)}<span>${esc(msg)}</span>`;
+  t.innerHTML = `${ic(icon || 'check', 17, '', 2)}<span>${esc(msg)}</span>`;
   void t.offsetWidth; t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
 }
@@ -519,7 +574,8 @@ A.distview = d => { S.view = d.v === 'list' ? 'list' : 'cards'; persist(); rende
 A.open = d => push('biz', {id: d.id});
 A.back = () => performBack();
 A.tab = d => goTab(d.v);
-A.city = d => { S.city = d.v; persist(); render({keep: true}); };
+A.city = d => { S.city = d.v; S.pick = true; S.cityOpen = false; persist(); render({keep: true}); };
+A.cityopen = () => { S.cityOpen = true; refreshBar(); };
 A.kash = d => {
   const i = S.kash.indexOf(d.v);
   if (i > -1) S.kash.splice(i, 1); else S.kash.push(d.v);
@@ -550,10 +606,11 @@ INPUTS.search = t => {
   const c = $('#sclear'); if (c) c.classList.toggle('show', !!t.value);
 };
 
+// Android motors barely register pulses under ~15ms, so keep taps in the 18-30ms range.
 function haptic(ms) {
-  const n = ms || 10;
+  const n = ms || 20;
   if (typeof navigator.vibrate === 'function') {
-    try { navigator.vibrate(n); return; } catch (e) {}
+    try { if (navigator.vibrate(n)) return; } catch (e) {}
   }
   try {
     let sw = document.getElementById('haptic-switch');
@@ -571,16 +628,42 @@ function haptic(ms) {
     sw.click();
   } catch (e) {}
 }
-const HAPTIC_MS = {back:16, open:12, district:12, opencat:12, tab:10, save:14, gosearch:10};
+const HAPTIC_MS = {back:28, open:22, district:22, opencat:22, tab:20, save:[18, 40, 26], gosearch:20, city:20, cityopen:20, kash:18, jump:18};
 let backAt = 0;
 function performBack() {
   const now = Date.now();
   if (now - backAt < 450) return;
   if (stack().length < 2) return;
   backAt = now;
-  haptic(16);
+  haptic(HAPTIC_MS.back);
   back();
 }
+
+// System back (Android back button / gesture, browser back). A guard history entry sits on top
+// of the real one, so back lands on our handler instead of closing the app.
+let guarded = false, exitT = null;
+function hstate(tag) { return Object.assign({}, history.state || {}, {jyp: tag}); }
+function ensureGuard() {
+  if (guarded) return;
+  try { history.pushState(hstate('guard'), '', location.href); guarded = true; } catch (e) {}
+}
+try {
+  if (history.state && history.state.jyp === 'guard') guarded = true;
+  else { history.replaceState(hstate('base'), '', location.href); ensureGuard(); }
+} catch (e) {}
+on(window, 'popstate', ev => {
+  const st = ev.state;
+  if (!st || !st.jyp) return;
+  ev.stopImmediatePropagation();
+  if (st.jyp === 'guard') { guarded = true; return; }
+  guarded = false;
+  if (stepBack()) { haptic(HAPTIC_MS.back); ensureGuard(); return; }
+  // Already on the home screen: warn first, a second back within a moment leaves the app.
+  toast('Press back again to exit', 'info');
+  haptic([20, 50, 20]);
+  clearTimeout(exitT);
+  exitT = setTimeout(ensureGuard, 2400);
+}, {capture:true});
 let edge = null;
 on(document, 'touchstart', ev => {
   if (ev.touches.length === 1 && ev.touches[0].clientX <= 32 && ev.cancelable) ev.preventDefault();
@@ -600,9 +683,10 @@ on(document, 'pointercancel', () => { edge = null; }, {passive:true});
 on(document, 'click', ev => {
   const node = ev.target instanceof Element ? ev.target : ev.target && ev.target.parentElement;
   if (!node || !host.contains(node)) return;
-  const el = node.closest('[data-act]'); if (!el) return;
+  const el = node.closest('[data-act]');
+  if (!el) { if (node.closest('a[href],button')) haptic(18); return; }
   const fn = A[el.dataset.act]; if (!fn) return;
-  if (el.dataset.act !== 'back') haptic(HAPTIC_MS[el.dataset.act] || 8);
+  if (el.dataset.act !== 'back') haptic(HAPTIC_MS[el.dataset.act] || 18);
   if (!(el.tagName === 'A' && el.getAttribute('href'))) ev.preventDefault();
   fn(Object.assign({}, el.dataset), el, ev);
 });
@@ -621,8 +705,11 @@ on(document, 'input', ev => {
     nav.stacks.browse.push({ n: "biz", p: { id: initialId } })
   }
   render()
+  startLocating()
   return () => {
+    dead = true
     listeners.forEach((fn) => fn())
     clearTimeout(toastT)
+    clearTimeout(exitT)
   }
 }

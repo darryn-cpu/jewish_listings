@@ -7,7 +7,16 @@ import { ApiError, TransitionError } from "@/server/errors"
 export function jsonError(error: unknown) {
   if (error instanceof ZodError) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "Check the highlighted fields.", details: error.flatten() } },
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: error.issues[0]?.message ?? "Check the highlighted fields.",
+          details: {
+            ...error.flatten(),
+            issues: error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+          },
+        },
+      },
       { status: 400 },
     )
   }
