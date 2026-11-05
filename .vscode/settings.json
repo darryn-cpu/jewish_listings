@@ -1,0 +1,15 @@
+{
+  "java.jdt.ls.java.home": "C:\\Program Files\\Microsoft\\jdk-21.0.13.21-hotspot",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Microsoft\\jdk-21.0.13.21-hotspot",
+      "default": true
+    }
+  ],
+  "terminal.integrated.env.windows": {
+    "JAVA_HOME": "C:\\Program Files\\Microsoft\\jdk-21.0.13.21-hotspot",
+    "ANDROID_HOME": "C:\\Users\\Danks\\AppData\\Local\\Android\\Sdk",
+    "ANDROID_SDK_ROOT": "C:\\Users\\Danks\\AppData\\Local\\Android\\Sdk"
+  }
+}
