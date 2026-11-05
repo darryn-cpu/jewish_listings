@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPERADMIN
+  REVIEWER
+}
+
+enum RegistrationType {
+  CIPC_REGISTERED_COMPANY
+  SOLE_PROPRIETOR
+  PARTNERSHIP
+  TRUST
+}
+
+enum BusinessModel {
+  B2B
+  B2C
+  BOTH
+}
+
+enum OperationalFormat {
+  PHYSICAL
+  ONLINE
+  HYBRID
+}
+
+enum City {
+  JOHANNESBURG
+  CAPE_TOWN
+  OTHER
+}
+
+enum ApplicationStatus {
+  PENDING_REVIEW
+  REQUIRES_INFO
+  APPROVED
+  REJECTED
+}
+
+enum RejectionReason {
+  INCOMPLETE_DOCUMENTS
+  OWNERSHIP_UNVERIFIED
+  OUTSIDE_SERVICE_AREA
+  DUPLICATE
+  FAILED_REFERENCE
+  OTHER
+}
+
+enum DocumentPurpose {
+  CIPC
+  ADDRESS
+  JEWISH_PROOF
+  BETH_DIN
+}
+
+model AdminUser {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         AdminRole
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  reviews      Business[] @relation("Reviewer")
+  auditLogs    AuditLog[]
+}
+
+model Business {
+  id                        String               @id @default(cuid())
+  refCode                   String               @unique
+  legalName                 String
+  tradingName               String?
+  registrationType          RegistrationType
+  cipcNumber                String?
+  cipcDocKey                String?
+  proofOfAddressKey         String
+  businessModel             BusinessModel
+  operationalFormat         OperationalFormat
+  websiteUrl                String?
+  contactName               String
+  contactPhone              String
+  contactEmail              String
+  industryId                String
+  industry                  Industry             @relation(fields: [industryId], references: [id])
+  customDescription         String?
+  jewishOwnershipPercentage Int
+  synagogueId               String?
+  synagogue                 Synagogue?           @relation(fields: [synagogueId], references: [id])
+  synagogueOtherName        String?
+  rabbiContactName          String
+  rabbiContactPhone         String
+  jewishProofDocKey         String
+  offersDiscount            Boolean              @default(false)
+  discountDetails           String?
+  status                    ApplicationStatus    @default(PENDING_REVIEW)
+  isTest                    Boolean              @default(false)
+  reviewerId                String?
+  reviewer                  AdminUser?           @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewerNotes             String?
+  approvedAt                DateTime?
+  rejectionReason           RejectionReason?
+  consentAccepted           Boolean
+  accuracyDeclared          Boolean
+  statusTokenHash           String
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  locations                 BusinessLocation[]
+  tags                      BusinessTag[]
+  kosherCertification       KosherCertification?
+  auditLogs                 AuditLog[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([industryId])
+  @@index([contactEmail])
+}
+
+model BusinessLocation {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branchName   String?
+  addressLine1 String?
+  addressLine2 String?
+  suburb       String
+  city         City
+  postalCode   String?
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
+  isPrimary    Boolean  @default(false)
+
+  @@index([businessId])
+  @@index([city])
+}
+
+model KosherCertification {
+  id                 String   @id @default(cuid())
+  businessId         String   @unique
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  brandName          String
+  bethDinCertNumber  String
+  certDocKey         String
+  allowsBulkOrdering Boolean  @default(false)
+  meat               Boolean  @default(false)
+  dairy              Boolean  @default(false)
+  chalavYisrael      Boolean  @default(false)
+  parev              Boolean  @default(false)
+  mehadrin           Boolean  @default(false)
+}
+
+model Industry {
+  id         String       @id @default(cuid())
+  slug       String       @unique
+  name       String
+  parentId   String?
+  parent     Industry?    @relation("IndustryTree", fields: [parentId], references: [id])
+  children   Industry[]   @relation("IndustryTree")
+  sortOrder  Int          @default(0)
+  tags       ServiceTag[]
+  businesses Business[]
+}
+
+model ServiceTag {
+  id         String        @id @default(cuid())
+  slug       String        @unique
+  name       String
+  industryId String
+  industry   Industry      @relation(fields: [industryId], references: [id])
+  businesses BusinessTag[]
+
+  @@index([industryId])
+}
+
+model BusinessTag {
+  businessId String
+  tagId      String
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tag        ServiceTag @relation(fields: [tagId], references: [id])
+
+  @@id([businessId, tagId])
+  @@index([tagId])
+}
+
+model Synagogue {
+  id         String     @id @default(cuid())
+  name       String
+  city       City
+  rabbiName  String?
+  businesses Business[]
+
+  @@unique([name, city])
+  @@index([city])
+}
+
+model DocumentUpload {
+  id         String          @id @default(cuid())
+  purpose    DocumentPurpose
+  objectKey  String          @unique
+  mimeType   String
+  sizeBytes  Int
+  consumedAt DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([purpose])
+}
+
+model AuditLog {
+  id             String            @id @default(cuid())
+  businessId     String
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  adminUserId    String
+  adminUser      AdminUser         @relation(fields: [adminUserId], references: [id])
+  previousStatus ApplicationStatus
+  newStatus      ApplicationStatus
+  comment        String?
+  reasonCode     RejectionReason?
+  timestamp      DateTime          @default(now())
+
+  @@index([businessId])
+  @@index([timestamp])
+}
+
+model RefSequence {
+  year      Int @id
+  lastValue Int
+}

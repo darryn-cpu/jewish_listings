@@ -1,0 +1,14 @@
+{
+  "name": "Jewish Business Directory",
+  "short_name": "JBD",
+  "description": "Vetted Jewish-owned businesses in Johannesburg and Cape Town.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F4EC",
+  "theme_color": "#14152A",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
