@@ -1,8 +1,0 @@
-{
-  "name": "Remix Jewish Food — Shopping \u0026 Dining",
-  "description": "A storefront directory of the Kosher SA shopping and dining list.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}
