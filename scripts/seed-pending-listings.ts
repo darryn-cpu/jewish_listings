@@ -410,8 +410,20 @@ function statusTokenHash() {
   return createHash("sha256").update(token).digest("hex")
 }
 
+type StorageUploader = {
+  storage: {
+    from(bucket: string): {
+      upload(
+        path: string,
+        body: Buffer,
+        options: { contentType: string; upsert: boolean },
+      ): Promise<{ error: { message: string } | null }>
+    }
+  }
+}
+
 async function uploadDocument(
-  storage: ReturnType<typeof createClient>,
+  storage: StorageUploader,
   bucket: string,
   listingName: string,
   document: DocSpec,

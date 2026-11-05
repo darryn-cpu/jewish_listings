@@ -46,7 +46,7 @@ function readIssues(details: unknown): FieldIssue[] {
   return issues.flatMap((issue) => {
     if (!issue || typeof issue !== "object") return []
     const message = "message" in issue && typeof issue.message === "string" ? issue.message : ""
-    const path = "path" in issue && Array.isArray(issue.path) ? issue.path.filter((part) => typeof part === "string" || typeof part === "number") : []
+    const path = "path" in issue && Array.isArray(issue.path) ? issue.path.filter((part: unknown) => typeof part === "string" || typeof part === "number") : []
     return message ? [{ path, message }] : []
   })
 }
