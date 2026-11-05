@@ -2,6 +2,7 @@
 
 import Script from "next/script"
 import { useState } from "react"
+import { Spinner } from "@/components/spinner"
 import type { DirectoryMetadata } from "@/lib/directory"
 import { CITY_LABEL, REGISTRATION_LABEL } from "@/lib/labels"
 
@@ -134,49 +135,57 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
     setError(null)
     setIssues([])
     const turnstileToken = (document.querySelector<HTMLTextAreaElement>("[name='cf-turnstile-response']")?.value) || undefined
-    const response = await fetch("/api/v1/applications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        turnstileToken,
-        identity: {
-          legalName,
-          tradingName,
-          registrationType,
-          cipcNumber: registrationType === "CIPC_REGISTERED_COMPANY" ? cipcNumber : undefined,
-          cipcUploadId: registrationType === "CIPC_REGISTERED_COMPANY" ? cipcUploadId : undefined,
-          proofOfAddressUploadId,
-        },
-        operations: {
-          businessModel,
-          operationalFormat,
-          websiteUrl,
-          contactName,
-          contactPhone,
-          contactEmail,
-          locations: locations.map((location) => ({
-            ...location,
-            branchName: location.branchName || undefined,
-            addressLine2: location.addressLine2 || undefined,
-            postalCode: location.postalCode || undefined,
-          })),
-        },
-        categorization: { industryId, tagIds, customDescription },
-        ownership: {
-          jewishOwnershipPercentage: ownership,
-          synagogueId: synagogueChoice !== "other" ? synagogueChoice : undefined,
-          synagogueOtherName: synagogueChoice === "other" ? synagogueOtherName : undefined,
-          rabbiContactName,
-          rabbiContactPhone,
-          jewishProofUploadId,
-        },
-        kosher: offersKosher
-          ? { brandName, bethDinCertNumber, certUploadId, allowsBulkOrdering, meat, dairy, chalavYisrael, parev, mehadrin }
-          : undefined,
-        legal: { offersDiscount, discountDetails: offersDiscount ? discountDetails : undefined, consentAccepted, accuracyDeclared },
-      }),
-    })
-    const body = await response.json()
+    let response: Response
+    let body: { refCode?: string; statusToken?: string; error?: { message?: string; details?: unknown } }
+    try {
+      response = await fetch("/api/v1/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turnstileToken,
+          identity: {
+            legalName,
+            tradingName,
+            registrationType,
+            cipcNumber: registrationType === "CIPC_REGISTERED_COMPANY" ? cipcNumber : undefined,
+            cipcUploadId: registrationType === "CIPC_REGISTERED_COMPANY" ? cipcUploadId : undefined,
+            proofOfAddressUploadId,
+          },
+          operations: {
+            businessModel,
+            operationalFormat,
+            websiteUrl,
+            contactName,
+            contactPhone,
+            contactEmail,
+            locations: locations.map((location) => ({
+              ...location,
+              branchName: location.branchName || undefined,
+              addressLine2: location.addressLine2 || undefined,
+              postalCode: location.postalCode || undefined,
+            })),
+          },
+          categorization: { industryId, tagIds, customDescription },
+          ownership: {
+            jewishOwnershipPercentage: ownership,
+            synagogueId: synagogueChoice !== "other" ? synagogueChoice : undefined,
+            synagogueOtherName: synagogueChoice === "other" ? synagogueOtherName : undefined,
+            rabbiContactName,
+            rabbiContactPhone,
+            jewishProofUploadId,
+          },
+          kosher: offersKosher
+            ? { brandName, bethDinCertNumber, certUploadId, allowsBulkOrdering, meat, dairy, chalavYisrael, parev, mehadrin }
+            : undefined,
+          legal: { offersDiscount, discountDetails: offersDiscount ? discountDetails : undefined, consentAccepted, accuracyDeclared },
+        }),
+      })
+      body = await response.json()
+    } catch {
+      setPending(false)
+      setError("The application could not be submitted. Check the connection and try again.")
+      return
+    }
     setPending(false)
     if (!response.ok) {
       const found = readIssues(body.error?.details)
@@ -188,6 +197,10 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
         return index == null ? [] : [index]
       })
       if (stepsHit.length) setStep(Math.min(...stepsHit))
+      return
+    }
+    if (!body.refCode || !body.statusToken) {
+      setError("The application could not be submitted.")
       return
     }
     setReceipt({ refCode: body.refCode, statusToken: body.statusToken })
@@ -209,7 +222,7 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   }
 
   return (
-    <section className="panel" spellCheck={false}>
+    <section className="panel" spellCheck={false} aria-busy={pending}>
       <div className="steps" aria-hidden="true">{steps.map((label, index) => <i className={index <= step ? "on" : ""} key={label} />)}</div>
       <div className="step-lab">
         <h2>{steps[step]}</h2>
@@ -365,6 +378,7 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
           {siteKey ? <Turnstile siteKey={siteKey} /> : <p className="tiny">Bot check is off in this environment.</p>}
         </div>
       ) : null}
+      {pending ? <p className="loading-label" role="status">Sending your application. This can take a few seconds.</p> : null}
       {error ? (
         <div className="alert" role="alert">
           {error.split("\n").map((line) => <p key={line}>{line}</p>)}
@@ -375,7 +389,9 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
         {step < steps.length - 1 ? (
           <button className="btn-primary" type="button" onClick={() => { const problem = validateStep(); setIssues([]); setError(problem); if (!problem) setStep((current) => current + 1) }}>Continue</button>
         ) : (
-          <button className="btn-primary" type="button" disabled={pending} onClick={submit}>{pending ? "Submitting" : "Submit application"}</button>
+          <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="button" disabled={pending} onClick={submit}>
+            {pending ? <><Spinner /> Submitting</> : "Submit application"}
+          </button>
         )}
       </div>
     </section>
@@ -431,7 +447,7 @@ function UploadField({ purpose, label, issue, onUploaded }: { purpose: string; l
     <label className={issue ? "field bad" : "field"}>
       <span>{label}</span>
       <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => onFile(event.target.files?.[0])} />
-      {name ? <span className="tiny">{busy ? "Uploading" : `Uploaded ${name}`}</span> : null}
+      {busy || name ? <span className="tiny loading-label">{busy ? <><Spinner /> Uploading</> : `Uploaded ${name}`}</span> : null}
       {issue ? <span className="ferr">{issue}</span> : null}
       {message ? <span className="alert">{message}</span> : null}
     </label>

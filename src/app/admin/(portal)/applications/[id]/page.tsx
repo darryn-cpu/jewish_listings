@@ -1,6 +1,9 @@
+import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { ApplicationDocuments, DocumentsFallback } from "./documents"
 import { ReviewActions } from "./review-actions"
+import { LinkPending } from "@/components/link-pending"
 import { CITY_LABEL, FORMAT_LABEL, MODEL_LABEL, REASON_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from "@/lib/labels"
 import { getAdminApplication } from "@/server/adminService"
 
@@ -10,10 +13,16 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const { id } = await params
   const application = await getAdminApplication(id)
   if (!application) notFound()
+  const documentSlots = [
+    { purpose: "CIPC", label: "CIPC registration", objectKey: application.cipcDocKey },
+    { purpose: "ADDRESS", label: "Proof of address", objectKey: application.proofOfAddressKey },
+    { purpose: "JEWISH_PROOF", label: "Rabbinical verification", objectKey: application.jewishProofDocKey },
+    { purpose: "BETH_DIN", label: "Beth Din certificate", objectKey: application.kosherCertification?.certDocKey ?? null },
+  ].filter((slot) => slot.objectKey && !slot.objectKey.startsWith("import/koshersa/"))
 
   return (
     <main className="page">
-      <Link className="text-link" href="/admin">Back to the queue</Link>
+      <Link className="text-link" href="/admin">Back to the queue <LinkPending label="Loading" /></Link>
       <header className="split">
         <div>
           <p className="kicker">{application.refCode}</p>
@@ -74,16 +83,11 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         {application.rejectionReason ? <p>Rejection reason: {REASON_LABEL[application.rejectionReason]}</p> : null}
       </section>
 
-      <section className="stack">
-        {application.documents.map((document) => (
-          <article className="panel doc" key={document.purpose}>
-            <h2>{document.label}</h2>
-            {document.url && document.mimeType.startsWith("image/") ? <img src={document.url} alt="" /> : null}
-            {document.url && document.mimeType === "application/pdf" ? <iframe src={document.url} title={document.label} /> : null}
-            {document.url ? <a className="btn small" href={document.url} target="_blank" rel="noopener noreferrer">Open document</a> : <p className="alert">The document link is unavailable.</p>}
-          </article>
-        ))}
-      </section>
+      {documentSlots.length ? (
+        <Suspense fallback={<DocumentsFallback />}>
+          <ApplicationDocuments slots={documentSlots} />
+        </Suspense>
+      ) : null}
 
       <ReviewActions id={application.id} />
 

@@ -63,10 +63,19 @@ async function consumeUpload(tx: Prisma.TransactionClient, id: string, purpose: 
 }
 
 export async function submitApplication(input: ApplicationInput) {
-  const industry = await prisma.industry.findUnique({
-    where: { id: input.categorization.industryId },
-    include: { tags: { select: { id: true } } },
-  })
+  const [industry, synagogue] = await Promise.all([
+    prisma.industry.findUnique({
+      where: { id: input.categorization.industryId },
+      include: { tags: { select: { id: true } } },
+    }),
+    input.ownership.synagogueId
+      ? prisma.synagogue.findUnique({ where: { id: input.ownership.synagogueId } })
+      : Promise.resolve(null),
+    requireUpload(input.identity.proofOfAddressUploadId, "ADDRESS"),
+    requireUpload(input.ownership.jewishProofUploadId, "JEWISH_PROOF"),
+    input.identity.cipcUploadId ? requireUpload(input.identity.cipcUploadId, "CIPC") : Promise.resolve(null),
+    input.kosher ? requireUpload(input.kosher.certUploadId, "BETH_DIN") : Promise.resolve(null),
+  ])
   if (!industry) {
     throw new ApiError(400, "INDUSTRY_NOT_FOUND", "Choose an industry from the list.")
   }
@@ -74,15 +83,9 @@ export async function submitApplication(input: ApplicationInput) {
   if (input.categorization.tagIds.some((tagId) => !allowedTags.has(tagId))) {
     throw new ApiError(400, "TAG_MISMATCH", "Each service tag must belong to the chosen industry.")
   }
-  if (input.ownership.synagogueId) {
-    const synagogue = await prisma.synagogue.findUnique({ where: { id: input.ownership.synagogueId } })
-    if (!synagogue) throw new ApiError(400, "SYNAGOGUE_NOT_FOUND", "Choose a synagogue from the list.")
+  if (input.ownership.synagogueId && !synagogue) {
+    throw new ApiError(400, "SYNAGOGUE_NOT_FOUND", "Choose a synagogue from the list.")
   }
-
-  await requireUpload(input.identity.proofOfAddressUploadId, "ADDRESS")
-  await requireUpload(input.ownership.jewishProofUploadId, "JEWISH_PROOF")
-  if (input.identity.cipcUploadId) await requireUpload(input.identity.cipcUploadId, "CIPC")
-  if (input.kosher) await requireUpload(input.kosher.certUploadId, "BETH_DIN")
 
   const { token, hash } = createStatusToken()
   const locations = input.operations.locations.map((location, index) => ({

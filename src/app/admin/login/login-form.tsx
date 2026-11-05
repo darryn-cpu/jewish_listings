@@ -1,34 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
+import { Spinner } from "@/components/spinner"
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
     setPending(true)
     setError(null)
-    const response = await fetch("/api/v1/admin/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }),
-    })
-    const body = await response.json()
-    if (!response.ok) {
+    try {
+      const response = await fetch("/api/v1/admin/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }),
+      })
+      const body = await response.json()
+      if (!response.ok) {
+        setPending(false)
+        setError(body.error?.message ?? "Sign-in failed.")
+        return
+      }
+      const next = nextPath.startsWith("/admin") && !nextPath.startsWith("//") ? nextPath : "/admin"
+      window.location.assign(next)
+    } catch {
       setPending(false)
-      setError(body.error?.message ?? "Sign-in failed.")
-      return
+      setError("Sign-in failed. Check the connection and try again.")
     }
-    window.location.href = nextPath.startsWith("/admin") && !nextPath.startsWith("//") ? nextPath : "/admin"
   }
 
   return (
-    <form className="panel" action={onSubmit}>
-      <label className="field"><span>Email</span><input name="email" type="email" autoComplete="username" required /></label>
-      <label className="field"><span>Password</span><input name="password" type="password" autoComplete="current-password" required /></label>
+    <form className="panel" onSubmit={onSubmit} aria-busy={pending}>
+      <label className="field"><span>Email</span><input name="email" type="email" autoComplete="username" required disabled={pending} /></label>
+      <label className="field"><span>Password</span><input name="password" type="password" autoComplete="current-password" required disabled={pending} /></label>
       {error ? <p className="alert" role="alert">{error}</p> : null}
-      <button className="btn-primary" type="submit" disabled={pending}>{pending ? "Signing in" : "Sign in"}</button>
+      <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="submit" disabled={pending}>
+        {pending ? <><Spinner /> Signing in</> : "Sign in"}
+      </button>
+      {pending ? <p className="loading-label" role="status">Checking your account and opening the queue.</p> : null}
     </form>
   )
 }

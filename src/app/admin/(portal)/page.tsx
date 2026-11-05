@@ -1,5 +1,8 @@
 import Link from "next/link"
 import { StaffForm } from "./staff-form"
+import { LinkPending } from "@/components/link-pending"
+import { NavForm } from "@/components/nav-form"
+import { Spinner } from "@/components/spinner"
 import { one } from "@/lib/directory"
 import { CITY_LABEL, STATUS_LABEL, type CityCode, type StatusCode } from "@/lib/labels"
 import { getStats, listQueue, parseQueueQuery } from "@/server/adminService"
@@ -49,26 +52,32 @@ export default async function QueuePage({
           </article>
         ))}
       </section>
-      <form className="panel" action="/admin" method="get">
-        <label className="field"><span>Search</span><input name="q" defaultValue={params.get("q") ?? ""} placeholder="Name or reference" /></label>
-        <div className="form-grid two">
-          <label className="field">
-            <span>Status</span>
-            <select name="status" defaultValue={params.get("status") ?? ""}>
-              <option value="">All</option>
-              {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label className="field">
-            <span>Date</span>
-            <select name="sort" defaultValue={params.get("sort") ?? "desc"}>
-              <option value="desc">Newest first</option>
-              <option value="asc">Oldest first</option>
-            </select>
-          </label>
-        </div>
-        <button className="btn-primary" type="submit">Filter</button>
-      </form>
+      <NavForm className="panel" action="/admin" current={params.toString()}>
+        {(pending) => (
+          <>
+            <label className="field"><span>Search</span><input name="q" defaultValue={params.get("q") ?? ""} placeholder="Name or reference" /></label>
+            <div className="form-grid two">
+              <label className="field">
+                <span>Status</span>
+                <select name="status" defaultValue={params.get("status") ?? ""}>
+                  <option value="">All</option>
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Date</span>
+                <select name="sort" defaultValue={params.get("sort") ?? "desc"}>
+                  <option value="desc">Newest first</option>
+                  <option value="asc">Oldest first</option>
+                </select>
+              </label>
+            </div>
+            <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="submit" disabled={pending}>
+              {pending ? <><Spinner /> Filtering</> : "Filter"}
+            </button>
+          </>
+        )}
+      </NavForm>
       <section className="stack">
         {queue.results.map((item) => (
           <Link className="card" href={`/admin/applications/${item.id}`} key={item.id}>
@@ -81,6 +90,7 @@ export default async function QueuePage({
             </div>
             <p className="muted">{item.refCode} · {item.city ? CITY_LABEL[item.city as CityCode] : "No city"}{item.suburb ? ` · ${item.suburb}` : ""}</p>
             <p className="tiny">{new Date(item.createdAt).toLocaleString("en-ZA")}</p>
+            <LinkPending overlay label="Opening" />
           </Link>
         ))}
         {queue.results.length === 0 ? <p className="empty">No applications match this filter.</p> : null}

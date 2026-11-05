@@ -1,5 +1,8 @@
 import Link from "next/link"
 import { ApplyForm } from "./apply-form"
+import { LinkPending } from "@/components/link-pending"
+import { NavForm } from "@/components/nav-form"
+import { Spinner } from "@/components/spinner"
 import { one } from "@/lib/directory"
 import { STATUS_LABEL } from "@/lib/labels"
 import { lookupApplicationStatus } from "@/server/adminService"
@@ -20,12 +23,17 @@ export default async function ApplyPage({
   const result = view === "status" && ref && token ? await lookupApplicationStatus(ref, token) : null
   const checked = view === "status" && Boolean(ref && token)
   const directory = view === "apply" ? await getMetadata() : null
+  const current = new URLSearchParams()
+  for (const [key, value] of Object.entries(raw)) {
+    const item = one(value)
+    if (item) current.set(key, item)
+  }
 
   return (
     <main className="page">
       <nav className="seg" aria-label="Apply or check status">
-        <Link className={view === "apply" ? "on" : ""} href="/apply" aria-current={view === "apply" ? "page" : undefined}>Apply</Link>
-        <Link className={view === "status" ? "on" : ""} href="/apply?view=status" aria-current={view === "status" ? "page" : undefined}>Check status</Link>
+        <Link className={view === "apply" ? "on" : ""} href="/apply" aria-current={view === "apply" ? "page" : undefined}>Apply <LinkPending label="Loading" /></Link>
+        <Link className={view === "status" ? "on" : ""} href="/apply?view=status" aria-current={view === "status" ? "page" : undefined}>Check status <LinkPending label="Loading" /></Link>
       </nav>
       {view === "apply" && directory ? (
         <>
@@ -43,12 +51,18 @@ export default async function ApplyPage({
             <h1>Check an application</h1>
             <p className="lede">Use the reference and the private token from the receipt.</p>
           </div>
-          <form className="panel" action="/apply" method="get">
-            <input type="hidden" name="view" value="status" />
-            <label className="field"><span>Reference</span><input name="ref" defaultValue={ref} placeholder="JBD-2026-0001" /></label>
-            <label className="field"><span>Status token</span><input name="token" defaultValue={token} /></label>
-            <button className="btn-primary" type="submit">Look up</button>
-          </form>
+          <NavForm className="panel" action="/apply" current={current.toString()}>
+            {(pending) => (
+              <>
+                <input type="hidden" name="view" value="status" />
+                <label className="field"><span>Reference</span><input name="ref" defaultValue={ref} placeholder="JBD-2026-0001" /></label>
+                <label className="field"><span>Status token</span><input name="token" defaultValue={token} /></label>
+                <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="submit" disabled={pending}>
+                  {pending ? <><Spinner /> Looking up</> : "Look up"}
+                </button>
+              </>
+            )}
+          </NavForm>
           {checked && result ? (
             <section className="panel">
               <p className="kicker">{result.refCode}</p>

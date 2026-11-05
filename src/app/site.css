@@ -228,6 +228,7 @@ body:has(.site) { background: var(--bg); }
 .site .btn-danger { border-color: var(--err); background: transparent; color: var(--err); }
 .site .btn.small { height: 42px; min-height: 42px; padding: 0 15px; font-size: 13.5px; border-radius: 15px; }
 .site .btn:disabled, .site .btn-primary:disabled, .site .btn-danger:disabled { opacity: 0.4; cursor: default; pointer-events: none; filter: saturate(0.5); }
+.site .btn.is-busy:disabled, .site .btn-primary.is-busy:disabled, .site .btn-danger.is-busy:disabled { opacity: 1; filter: none; cursor: wait; }
 .site .form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .site .form-actions > * { flex: 1 1 auto; }
 .site .form-actions > .btn-primary { flex-grow: 2; }
@@ -286,3 +287,42 @@ body:has(.site) { background: var(--bg); }
 
 /* ---------- empty state ---------- */
 .site .empty { display: grid; justify-items: center; padding: 32px 20px; border: 1.5px dashed var(--line-2); border-radius: 28px; background: var(--glass-2); color: var(--text-2); font-size: 14px; text-align: center; }
+
+.site .spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  animation: site-spin 0.7s linear infinite;
+}
+@keyframes site-spin { to { transform: rotate(360deg); } }
+.site .loading-label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 700; }
+.site .skel {
+  height: 92px;
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.35));
+  background-size: 200% 100%;
+  animation: site-shimmer 1.1s ease-in-out infinite;
+}
+.site .skel.lg { height: 148px; }
+.site .skel.doc { height: 220px; }
+@keyframes site-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.site .card { position: relative; }
+.site .link-pending {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  font-weight: 750;
+}
+.site .inline-pending { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; color: var(--accent-text); font-size: 0.82rem; font-weight: 750; }

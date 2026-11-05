@@ -59,14 +59,6 @@ export function parseQueueQuery(params: URLSearchParams) {
   }
 }
 
-async function testFlags(ids: string[]) {
-  if (!ids.length) return new Map<string, boolean>()
-  const rows = await prisma.$queryRaw<Array<{ id: string; isTest: boolean }>>(
-    Prisma.sql`SELECT id, "isTest" FROM "Business" WHERE id IN (${Prisma.join(ids)})`,
-  )
-  return new Map(rows.map((row) => [row.id, row.isTest]))
-}
-
 export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
   const where: Prisma.BusinessWhereInput = {
     status: query.status,
@@ -95,11 +87,11 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
         status: true,
         createdAt: true,
         contactEmail: true,
+        isTest: true,
         locations: { where: { isPrimary: true }, select: { city: true, suburb: true }, take: 1 },
       },
     }),
   ])
-  const flags = await testFlags(results.map((row) => row.id))
   return {
     page: query.page,
     limit: query.limit,
@@ -110,7 +102,7 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
       legalName: row.legalName,
       tradingName: row.tradingName,
       status: row.status,
-      isTest: flags.get(row.id) === true,
+      isTest: row.isTest,
       createdAt: row.createdAt.toISOString(),
       contactEmail: row.contactEmail,
       city: row.locations[0]?.city ?? null,
@@ -119,21 +111,32 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
   }
 }
 
-async function openDocument(objectKey: string | null, purpose: string, label: string) {
-  if (!objectKey || objectKey.startsWith("import/koshersa/")) return null
-  const upload = await prisma.documentUpload.findUnique({ where: { objectKey } })
-  let url: string | null = null
-  try {
-    url = await signedDownloadUrl(objectKey)
-  } catch (error) {
-    console.error(error)
-  }
-  return {
-    purpose,
-    label,
-    mimeType: upload?.mimeType ?? "application/octet-stream",
-    url,
-  }
+export async function loadApplicationDocuments(slots: Array<{ purpose: string; label: string; objectKey: string | null }>) {
+  const pending = slots.flatMap((slot) => {
+    if (!slot.objectKey || slot.objectKey.startsWith("import/koshersa/")) return []
+    return [{ purpose: slot.purpose, label: slot.label, objectKey: slot.objectKey }]
+  })
+  if (!pending.length) return []
+  const uploads = await prisma.documentUpload.findMany({
+    where: { objectKey: { in: pending.map((slot) => slot.objectKey) } },
+    select: { objectKey: true, mimeType: true },
+  })
+  const mime = new Map(uploads.map((row) => [row.objectKey, row.mimeType]))
+  const signed = await Promise.all(pending.map(async (slot) => {
+    try {
+      return [slot.objectKey, await signedDownloadUrl(slot.objectKey)] as const
+    } catch (error) {
+      console.error(error)
+      return [slot.objectKey, null] as const
+    }
+  }))
+  const urls = new Map(signed)
+  return pending.map((slot) => ({
+    purpose: slot.purpose,
+    label: slot.label,
+    mimeType: mime.get(slot.objectKey) ?? "application/octet-stream",
+    url: urls.get(slot.objectKey) ?? null,
+  }))
 }
 
 export async function getAdminApplication(id: string) {
@@ -142,7 +145,6 @@ export async function getAdminApplication(id: string) {
     include: {
       industry: true,
       synagogue: true,
-      reviewer: { select: { id: true, email: true, role: true } },
       locations: { orderBy: { isPrimary: "desc" } },
       tags: { include: { tag: true } },
       kosherCertification: true,
@@ -150,25 +152,14 @@ export async function getAdminApplication(id: string) {
     },
   })
   if (!business) return null
-  const flags = await testFlags([business.id])
   const { statusTokenHash: _statusTokenHash, auditLogs, ...rest } = business
   void _statusTokenHash
-  const documents = (
-    await Promise.all([
-      openDocument(business.cipcDocKey, "CIPC", "CIPC registration"),
-      openDocument(business.proofOfAddressKey, "ADDRESS", "Proof of address"),
-      openDocument(business.jewishProofDocKey, "JEWISH_PROOF", "Rabbinical verification"),
-      openDocument(business.kosherCertification?.certDocKey ?? null, "BETH_DIN", "Beth Din certificate"),
-    ])
-  ).filter((document): document is NonNullable<typeof document> => document !== null)
 
   return {
     ...rest,
-    isTest: flags.get(business.id) === true,
     createdAt: business.createdAt.toISOString(),
     updatedAt: business.updatedAt.toISOString(),
     approvedAt: business.approvedAt?.toISOString() ?? null,
-    documents,
     auditLogs: auditLogs.map((entry) => ({
       id: entry.id,
       previousStatus: entry.previousStatus,
@@ -240,18 +231,53 @@ export async function changeApplicationStatus(
 }
 
 export async function getStats() {
-  const approved = { status: "APPROVED" as const }
-  const [total, pending, approvedCount, requiresInfo, rejected, johannesburg, capeTown, kosher] = await Promise.all([
-    prisma.business.count(),
-    prisma.business.count({ where: { status: "PENDING_REVIEW" } }),
-    prisma.business.count({ where: approved }),
-    prisma.business.count({ where: { status: "REQUIRES_INFO" } }),
-    prisma.business.count({ where: { status: "REJECTED" } }),
-    prisma.business.count({ where: { ...approved, locations: { some: { city: "JOHANNESBURG" } } } }),
-    prisma.business.count({ where: { ...approved, locations: { some: { city: "CAPE_TOWN" } } } }),
-    prisma.business.count({ where: { ...approved, kosherCertification: { isNot: null } } }),
-  ])
-  return { total, pending, approved: approvedCount, requiresInfo, rejected, johannesburg, capeTown, kosher }
+  const rows = await prisma.$queryRaw<Array<{
+    total: number
+    pending: number
+    approved: number
+    requiresInfo: number
+    rejected: number
+    johannesburg: number
+    capeTown: number
+    kosher: number
+  }>>`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'PENDING_REVIEW'::"ApplicationStatus")::int AS pending,
+      COUNT(*) FILTER (WHERE status = 'APPROVED'::"ApplicationStatus")::int AS approved,
+      COUNT(*) FILTER (WHERE status = 'REQUIRES_INFO'::"ApplicationStatus")::int AS "requiresInfo",
+      COUNT(*) FILTER (WHERE status = 'REJECTED'::"ApplicationStatus")::int AS rejected,
+      COUNT(*) FILTER (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+          SELECT 1 FROM "BusinessLocation" loc
+          WHERE loc."businessId" = "Business".id AND loc.city = 'JOHANNESBURG'::"City"
+        )
+      )::int AS johannesburg,
+      COUNT(*) FILTER (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+          SELECT 1 FROM "BusinessLocation" loc
+          WHERE loc."businessId" = "Business".id AND loc.city = 'CAPE_TOWN'::"City"
+        )
+      )::int AS "capeTown",
+      COUNT(*) FILTER (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+          SELECT 1 FROM "KosherCertification" cert
+          WHERE cert."businessId" = "Business".id
+        )
+      )::int AS kosher
+    FROM "Business"
+  `
+  const row = rows[0]
+  return {
+    total: Number(row?.total ?? 0),
+    pending: Number(row?.pending ?? 0),
+    approved: Number(row?.approved ?? 0),
+    requiresInfo: Number(row?.requiresInfo ?? 0),
+    rejected: Number(row?.rejected ?? 0),
+    johannesburg: Number(row?.johannesburg ?? 0),
+    capeTown: Number(row?.capeTown ?? 0),
+    kosher: Number(row?.kosher ?? 0),
+  }
 }
 
 export async function lookupApplicationStatus(refCode: string, token: string) {
