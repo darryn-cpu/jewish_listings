@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { BrandLink } from "@/components/brand"
 import { SignOutButton } from "@/components/sign-out-button"
 import { getSession } from "@/server/session"
 
@@ -8,13 +9,13 @@ export default async function PortalLayout({ children }: { children: React.React
   const session = await getSession()
   if (!session) redirect("/admin/login")
   return (
-    <div className="shell">
+    <div className="shell site wide">
       <header className="topbar">
-        <div>
-          <p className="brand">Vetting desk</p>
-          <p className="tiny">{session.email}</p>
+        <BrandLink href="/admin" subline="Vetting desk" />
+        <div className="topbar-end">
+          <span className="tiny">{session.email}</span>
+          <SignOutButton />
         </div>
-        <SignOutButton />
       </header>
       {children}
     </div>

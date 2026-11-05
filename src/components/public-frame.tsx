@@ -16,7 +16,7 @@ export function PublicFrame({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="shell">
+    <div className="shell site">
       <ServiceWorker />
       <PublicHeader />
       {children}

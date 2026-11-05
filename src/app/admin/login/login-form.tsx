@@ -27,7 +27,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     <form className="panel" action={onSubmit}>
       <label className="field"><span>Email</span><input name="email" type="email" autoComplete="username" required /></label>
       <label className="field"><span>Password</span><input name="password" type="password" autoComplete="current-password" required /></label>
-      {error ? <p className="alert">{error}</p> : null}
+      {error ? <p className="alert" role="alert">{error}</p> : null}
       <button className="btn-primary" type="submit" disabled={pending}>{pending ? "Signing in" : "Sign in"}</button>
     </form>
   )

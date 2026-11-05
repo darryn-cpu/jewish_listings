@@ -80,7 +80,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             <h2>{document.label}</h2>
             {document.url && document.mimeType.startsWith("image/") ? <img src={document.url} alt="" /> : null}
             {document.url && document.mimeType === "application/pdf" ? <iframe src={document.url} title={document.label} /> : null}
-            {document.url ? <a href={document.url}>Open document</a> : <p className="alert">The document link is unavailable.</p>}
+            {document.url ? <a className="btn small" href={document.url} target="_blank" rel="noopener noreferrer">Open document</a> : <p className="alert">The document link is unavailable.</p>}
           </article>
         ))}
       </section>

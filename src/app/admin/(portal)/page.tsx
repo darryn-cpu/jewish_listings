@@ -37,7 +37,10 @@ export default async function QueuePage({
 
   return (
     <main className="page">
-      <h1>Queue</h1>
+      <div>
+        <p className="kicker">Foundation 2000</p>
+        <h1>Review queue</h1>
+      </div>
       <section className="stats">
         {cards.map(([label, value]) => (
           <article className="stat" key={label}>
@@ -80,7 +83,7 @@ export default async function QueuePage({
             <p className="tiny">{new Date(item.createdAt).toLocaleString("en-ZA")}</p>
           </Link>
         ))}
-        {queue.results.length === 0 ? <p className="panel">No applications match this filter.</p> : null}
+        {queue.results.length === 0 ? <p className="empty">No applications match this filter.</p> : null}
       </section>
       {session?.role === "SUPERADMIN" ? <StaffForm /> : null}
     </main>

@@ -27,13 +27,13 @@ body {
     radial-gradient(900px 420px at 100% -10%, rgba(255, 189, 31, 0.35), transparent 55%),
     var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.5;
 }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
-h1, h2, h3 { font-family: var(--font-display), Georgia, serif; font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; margin: 0; }
+h1, h2, h3 { font-family: "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, system-ui, sans-serif; font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; margin: 0; }
 p { margin: 0; }
 
 .shell { width: min(880px, calc(100% - 32px)); margin: 0 auto; }
@@ -44,7 +44,7 @@ p { margin: 0; }
   gap: 16px;
   padding: 18px 0;
 }
-.brand { text-decoration: none; font-family: var(--font-display), Georgia, serif; font-size: 1.15rem; }
+.brand { text-decoration: none; font-family: "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, system-ui, sans-serif; font-size: 1.15rem; }
 .nav { display: flex; gap: 8px; }
 .nav a, .text-link {
   text-decoration: none;
@@ -123,7 +123,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(255, 189, 31
 
 .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
-.stat b { display: block; font-family: var(--font-display), Georgia, serif; font-size: 1.7rem; }
+.stat b { display: block; font-family: "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, system-ui, sans-serif; font-size: 1.7rem; }
 .alert { background: var(--err-bg); color: var(--err); border-radius: 14px; padding: 12px 14px; }
 .ok-note { background: var(--ok-bg); color: var(--ok); border-radius: 14px; padding: 12px 14px; }
 .steps { display: flex; gap: 6px; }

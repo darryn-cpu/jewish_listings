@@ -195,9 +195,12 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
 
   if (receipt) {
     return (
-      <section className="panel">
+      <section className="success" aria-live="polite">
+        <div className="success-ic" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        </div>
         <p className="kicker">Application received</p>
-        <h1>{receipt.refCode}</h1>
+        <h2 className="ref-code">{receipt.refCode}</h2>
         <p>Save this status token. It is shown once and is required to check the application later.</p>
         <p className="token">{receipt.statusToken}</p>
         <a className="btn-primary" href={`/apply?view=status&ref=${encodeURIComponent(receipt.refCode)}&token=${encodeURIComponent(receipt.statusToken)}`}>Check status</a>
@@ -208,8 +211,10 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   return (
     <section className="panel" spellCheck={false}>
       <div className="steps" aria-hidden="true">{steps.map((label, index) => <i className={index <= step ? "on" : ""} key={label} />)}</div>
-      <p className="kicker">Step {step + 1} of {steps.length}</p>
-      <h1>{steps[step]}</h1>
+      <div className="step-lab">
+        <h2>{steps[step]}</h2>
+        <span>Step {step + 1} of {steps.length}</span>
+      </div>
       {step === 0 ? (
         <div className="stack">
           <Field path="identity.legalName" label="Legal name" issue={issueFor("identity.legalName")}><input value={legalName} onChange={(event) => setLegalName(event.target.value)} /></Field>
@@ -290,9 +295,9 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
               {metadata.industries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
-          <div className="stack">
+          <div className="pills" role="group" aria-label="Service tags">
             {industry?.tags.map((tag) => (
-              <label className="check" key={tag.id}>
+              <label className={issueFor("categorization.tagIds") ? "pill bad" : "pill"} key={tag.id}>
                 <input
                   type="checkbox"
                   checked={tagIds.includes(tag.id)}
@@ -365,7 +370,7 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
           {error.split("\n").map((line) => <p key={line}>{line}</p>)}
         </div>
       ) : null}
-      <div className="row">
+      <div className="form-actions">
         {step > 0 ? <button className="btn" type="button" onClick={() => { setError(null); setIssues([]); setStep((current) => current - 1) }}>Back</button> : null}
         {step < steps.length - 1 ? (
           <button className="btn-primary" type="button" onClick={() => { const problem = validateStep(); setIssues([]); setError(problem); if (!problem) setStep((current) => current + 1) }}>Continue</button>

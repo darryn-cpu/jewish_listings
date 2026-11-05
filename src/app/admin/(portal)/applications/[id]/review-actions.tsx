@@ -56,8 +56,8 @@ export function ReviewActions({ id }: { id: string }) {
           {Object.entries(REASON_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
-      {error ? <p className="alert">{error}</p> : null}
-      <div className="row">
+      {error ? <p className="alert" role="alert">{error}</p> : null}
+      <div className="form-actions">
         <button className="btn-primary" type="button" disabled={pending} onClick={() => send("APPROVED")}>Approve</button>
         <button className="btn" type="button" disabled={pending} onClick={() => send("REQUIRES_INFO")}>Request info</button>
         <button className="btn-danger" type="button" disabled={pending} onClick={() => send("REJECTED")}>Reject</button>

@@ -1,9 +1,6 @@
 import type { Metadata, Viewport } from "next"
-import { Fraunces, Outfit } from "next/font/google"
 import "./globals.css"
-
-const display = Fraunces({ subsets: ["latin"], variable: "--font-display" })
-const sans = Outfit({ subsets: ["latin"], variable: "--font-sans" })
+import "./site.css"
 
 export const metadata: Metadata = {
   title: { default: "Jewish Business Directory", template: "%s · Jewish Business Directory" },
@@ -24,7 +21,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${sans.variable}`}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

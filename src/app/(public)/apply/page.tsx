@@ -23,10 +23,10 @@ export default async function ApplyPage({
 
   return (
     <main className="page">
-      <div className="row">
-        <Link className={view === "apply" ? "btn-primary" : "btn"} href="/apply">Apply</Link>
-        <Link className={view === "status" ? "btn-primary" : "btn"} href="/apply?view=status">Check status</Link>
-      </div>
+      <nav className="seg" aria-label="Apply or check status">
+        <Link className={view === "apply" ? "on" : ""} href="/apply" aria-current={view === "apply" ? "page" : undefined}>Apply</Link>
+        <Link className={view === "status" ? "on" : ""} href="/apply?view=status" aria-current={view === "status" ? "page" : undefined}>Check status</Link>
+      </nav>
       {view === "apply" && directory ? (
         <>
           <div>
@@ -52,11 +52,11 @@ export default async function ApplyPage({
           {checked && result ? (
             <section className="panel">
               <p className="kicker">{result.refCode}</p>
-              <h2 className={`status status-${result.status}`}>{STATUS_LABEL[result.status]}</h2>
-              <p className="muted">Updated {new Date(result.updatedAt).toLocaleString("en-ZA")}</p>
+              <span className={`status big status-${result.status}`}>{STATUS_LABEL[result.status]}</span>
+              <p className="tiny">Updated {new Date(result.updatedAt).toLocaleString("en-ZA")}</p>
             </section>
           ) : null}
-          {checked && !result ? <p className="alert">No application matches that reference and token.</p> : null}
+          {checked && !result ? <p className="alert" role="alert">No application matches that reference and token.</p> : null}
         </>
       )}
     </main>

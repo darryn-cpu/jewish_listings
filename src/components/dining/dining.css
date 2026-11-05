@@ -158,7 +158,7 @@
 .phone .h1s{font:800 36px/1 var(--display);letter-spacing:-.045em;margin:6px 0 8px}
 .phone .h2s{font:800 25px/1.08 var(--display);letter-spacing:-.04em;margin:4px 0 9px}
 .phone .lede{color:var(--text-2);font-size:14.5px;margin:0 0 16px}
-.phone ..phone{color:var(--text-2);font-size:15px;line-height:1.6;margin:0 0 6px}
+.phone .body{color:var(--text-2);font-size:15px;line-height:1.6;margin:0 0 6px}
 .phone .hl{font:italic 400 1.08em/1 var(--serif);letter-spacing:-.02em;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.06em}
 .phone .sublab{display:flex;align-items:center;gap:8px;font:700 11px var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);margin:24px 0 11px}
 .phone .sublab .cnt{margin-left:auto;color:var(--text-2);letter-spacing:.04em}
@@ -266,13 +266,13 @@
 .phone .sc-save{position:absolute;right:12px;top:12px;z-index:2;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:rgba(8,9,20,.45);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .25s var(--spring),background .2s}
 .phone .sc-save:active{transform:scale(.85)}
 .phone .sc-save.on{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:var(--accent-ink);border-color:transparent}
-.phone .sc-.phone{padding:15px 17px 17px}
+.phone .sc-body{padding:15px 17px 17px}
 .phone .sc-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
 .phone .sc-foot .recs{margin-left:auto}
 .phone .sc-foot .jo+.recs{margin-left:auto}
 .phone .scard.feat{flex:none;width:278px;scroll-snap-align:start;border-radius:30px}
 .phone .scard.feat .sc-art{aspect-ratio:3/2}
-.phone .scard.feat .sc-.phone{padding:14px 16px 15px}
+.phone .scard.feat .sc-body{padding:14px 16px 15px}
 .phone .scard.feat .sc-foot{margin-top:11px;padding-top:11px}
 .phone .scard.feat .sc-foot .recs{margin-left:0}
 .phone .scard.h{display:flex;align-items:stretch;border-radius:24px}
@@ -505,7 +505,7 @@
 
 /* ---------- account ---------- */
 .phone .welcome{padding:24px 20px;margin-top:18px;background:linear-gradient(160deg,var(--accent-soft),transparent 70%),var(--surface)}
-.phone .welcome ..phone{margin-bottom:16px}
+.phone .welcome .body{margin-bottom:16px}
 .phone .perks{display:grid;gap:8px}
 .phone .perk{display:flex;align-items:center;gap:13px;padding:13px 15px;background:var(--surface);border:1px solid var(--line);border-radius:20px;font-size:14px;font-weight:600}
 .phone .perk .ic{color:var(--accent-text)}
@@ -535,7 +535,7 @@
 
 /* ---------- registration ---------- */
 .phone .pg-register{display:flex;flex-direction:column;padding-bottom:0}
-.phone .reg-.phone{flex:1;padding-bottom:12px}
+.phone .reg-body{flex:1;padding-bottom:12px}
 .phone .stepper{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin:16px 0 10px}
 .phone .stepper i{height:5px;border-radius:3px;background:var(--line-2);transition:background .4s}
 .phone .stepper i.on{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
