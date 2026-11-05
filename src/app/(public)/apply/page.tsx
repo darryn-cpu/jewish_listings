@@ -1,8 +1,7 @@
 import Link from "next/link"
 import { ApplyForm } from "./apply-form"
 import { LinkPending } from "@/components/link-pending"
-import { NavForm } from "@/components/nav-form"
-import { Spinner } from "@/components/spinner"
+import { NavForm, NavSubmit } from "@/components/nav-form"
 import { one } from "@/lib/directory"
 import { STATUS_LABEL } from "@/lib/labels"
 import { lookupApplicationStatus } from "@/server/adminService"
@@ -52,16 +51,10 @@ export default async function ApplyPage({
             <p className="lede">Use the reference and the private token from the receipt.</p>
           </div>
           <NavForm className="panel" action="/apply" current={current.toString()}>
-            {(pending) => (
-              <>
-                <input type="hidden" name="view" value="status" />
-                <label className="field"><span>Reference</span><input name="ref" defaultValue={ref} placeholder="JBD-2026-0001" /></label>
-                <label className="field"><span>Status token</span><input name="token" defaultValue={token} /></label>
-                <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="submit" disabled={pending}>
-                  {pending ? <><Spinner /> Looking up</> : "Look up"}
-                </button>
-              </>
-            )}
+            <input type="hidden" name="view" value="status" />
+            <label className="field"><span>Reference</span><input name="ref" defaultValue={ref} placeholder="JBD-2026-0001" /></label>
+            <label className="field"><span>Status token</span><input name="token" defaultValue={token} /></label>
+            <NavSubmit idle="Look up" busy="Looking up" />
           </NavForm>
           {checked && result ? (
             <section className="panel">

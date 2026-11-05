@@ -1,7 +1,10 @@
 "use client"
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { Spinner } from "@/components/spinner"
+
+const NavPending = createContext(false)
 
 function canonical(search: string) {
   return [...new URLSearchParams(search).entries()]
@@ -20,7 +23,7 @@ export function NavForm({
   action: string
   current: string
   className?: string
-  children: (pending: boolean) => ReactNode
+  children: ReactNode
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -44,7 +47,16 @@ export function NavForm({
 
   return (
     <form className={className} action={action} method="get" onSubmit={onSubmit} aria-busy={pending}>
-      {children(pending)}
+      <NavPending.Provider value={pending}>{children}</NavPending.Provider>
     </form>
+  )
+}
+
+export function NavSubmit({ idle, busy }: { idle: string; busy: string }) {
+  const pending = useContext(NavPending)
+  return (
+    <button className={pending ? "btn-primary is-busy" : "btn-primary"} type="submit" disabled={pending}>
+      {pending ? <><Spinner /> {busy}</> : idle}
+    </button>
   )
 }
