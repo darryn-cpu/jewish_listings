@@ -44,6 +44,6 @@ export function hasFoodType(marks: {
   return Boolean(marks?.meat || marks?.dairy || marks?.chalavYisrael || marks?.parev || marks?.mehadrin)
 }
 
-export function isApplicantDocument(objectKey: string | null | undefined) {
+export function isApplicantDocument(objectKey: string | null | undefined): objectKey is string {
   return Boolean(objectKey && !objectKey.startsWith("import/koshersa/") && objectKey !== MARKS_ONLY_CERT_KEY)
 }
