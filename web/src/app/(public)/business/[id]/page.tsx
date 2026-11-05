@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { FORMAT_LABEL, MODEL_LABEL } from "@/lib/labels"
+import { isPublishedDiningListing } from "@/server/diningCatalog"
 import { getApprovedBusiness } from "@/server/directoryService"
 
 export const dynamic = "force-dynamic"
@@ -15,6 +16,7 @@ const KASHRUT = [
 
 export default async function BusinessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  if (await isPublishedDiningListing(id)) redirect(`/?listing=${encodeURIComponent(id)}`)
   const business = await getApprovedBusiness(id)
   if (!business) notFound()
   const marks = business.kosher ? KASHRUT.filter(([key]) => business.kosher?.[key]) : []

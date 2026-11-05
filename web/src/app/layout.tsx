@@ -7,15 +7,15 @@ const sans = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
   title: { default: "Jewish Business Directory", template: "%s · Jewish Business Directory" },
-  description: "A vetted directory of Jewish-owned businesses in Johannesburg and Cape Town.",
-  applicationName: "Jewish Business Directory",
+  description: "Kosher shopping and dining in South Africa, plus the vetted Jewish business directory.",
+  applicationName: "Jewish Yellow Pages",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "JBD", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Kosher Dining", statusBarStyle: "default" },
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 }
 
 export const viewport: Viewport = {
-  themeColor: "#14152A",
+  themeColor: "#f7f4ec",
   width: "device-width",
   initialScale: 1,
 }
