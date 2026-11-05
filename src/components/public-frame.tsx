@@ -1,6 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { AppIntro } from "@/components/app-intro"
 import { PublicHeader } from "@/components/public-header"
 import { ServiceWorker } from "@/components/service-worker"
 
@@ -10,6 +11,7 @@ export function PublicFrame({ children }: { children: React.ReactNode }) {
     return (
       <div className="phone">
         <ServiceWorker />
+        <AppIntro />
         {children}
       </div>
     )
