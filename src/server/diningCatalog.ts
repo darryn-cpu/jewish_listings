@@ -1,6 +1,7 @@
 import "server-only"
 import { DINING_SLUGS, toDiningListing, type DiningSource } from "@/lib/diningListing"
 import { prisma } from "@/server/prisma"
+import { publicListingFilter } from "@/server/schemas"
 
 const diningInclude = {
   tags: { include: { tag: { select: { slug: true } } } },
@@ -19,7 +20,7 @@ const diningInclude = {
 export async function listDiningCatalog() {
   const rows = await prisma.business.findMany({
     where: {
-      status: "APPROVED",
+      ...publicListingFilter,
       tags: { some: { tag: { slug: { in: [...DINING_SLUGS] } } } },
     },
     include: diningInclude,
@@ -37,7 +38,7 @@ export async function isPublishedDiningListing(id: string) {
   const row = await prisma.business.findFirst({
     where: {
       id,
-      status: "APPROVED",
+      ...publicListingFilter,
       tags: { some: { tag: { slug: { in: [...DINING_SLUGS] } } } },
     },
     select: { id: true },

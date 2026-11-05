@@ -44,6 +44,13 @@ export async function assertStoredObject(objectKey: string) {
   }
 }
 
+export async function deleteStoredObjects(objectKeys: string[]) {
+  const keys = [...new Set(objectKeys.filter((key) => key && !key.startsWith("import/")))]
+  if (!keys.length || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return
+  const { error } = await client().storage.from(bucketName()).remove(keys)
+  if (error) console.error(error)
+}
+
 export async function signedDownloadUrl(objectKey: string) {
   const { data, error } = await client().storage.from(bucketName()).createSignedUrl(objectKey, 300)
   if (error || !data?.signedUrl) {

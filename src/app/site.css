@@ -252,7 +252,7 @@ body:has(.site) { background: var(--bg); }
 .site .status.big { height: 34px; padding: 0 16px; font-size: 13.5px; border-radius: 17px; }
 .site .status-PENDING_REVIEW, .site .status-REQUIRES_INFO, .site .status-test { background: var(--warn-bg); color: var(--warn); }
 .site .status-APPROVED, .site .chip.kosher { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
-.site .status-REJECTED { background: var(--err-bg); color: var(--err); }
+.site .status-REJECTED, .site .status-disabled { background: var(--err-bg); color: var(--err); }
 .site .alert, .site .ok-note { padding: 14px 15px; border: 1px solid; border-radius: 22px; font-size: 13.5px; line-height: 1.5; }
 .site .alert { background: var(--err-bg); border-color: var(--err); color: var(--err); }
 .site .ok-note { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }

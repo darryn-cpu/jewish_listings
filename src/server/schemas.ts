@@ -253,6 +253,15 @@ export const createReviewerSchema = z.object({
   role: z.enum(["SUPERADMIN", "REVIEWER"]).default("REVIEWER"),
 })
 
+export const listingVisibilitySchema = z.object({
+  disabled: z.boolean(),
+})
+
+export const publicListingFilter = {
+  status: "APPROVED" as const,
+  disabledAt: null,
+}
+
 export const statusChangeSchema = z.object({
   status: z.enum(["PENDING_REVIEW", "REQUIRES_INFO", "APPROVED", "REJECTED"]),
   applicantMessage: z.string().trim().max(2000).optional(),
@@ -372,7 +381,7 @@ export function directoryWhere(query: DirectoryQuery) {
     filters.push({ kosherCertification: { isNot: null } })
   }
   return {
-    status: "APPROVED" as const,
+    ...publicListingFilter,
     ...(filters.length ? { AND: filters } : {}),
   }
 }

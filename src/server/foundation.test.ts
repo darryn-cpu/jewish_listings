@@ -154,6 +154,7 @@ describe("directory query", () => {
     expect(query.limit).toBe(50)
     expect(directoryWhere(query)).toMatchObject({
       status: "APPROVED",
+      disabledAt: null,
       AND: expect.arrayContaining([
         { locations: { some: { city: "CAPE_TOWN" } } },
         { kosherCertification: { isNot: null } },

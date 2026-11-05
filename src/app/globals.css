@@ -118,7 +118,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(255, 189, 31
 }
 .status-PENDING_REVIEW, .status-REQUIRES_INFO, .status-test { background: var(--warn-bg); color: var(--warn); }
 .status-APPROVED { background: var(--ok-bg); color: var(--ok); }
-.status-REJECTED { background: var(--err-bg); color: var(--err); }
+.status-REJECTED, .status-disabled { background: var(--err-bg); color: var(--err); }
 .kosher { background: var(--ok-bg); color: var(--ok); }
 
 .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }

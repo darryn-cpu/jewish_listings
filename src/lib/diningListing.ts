@@ -57,6 +57,8 @@ export type DiningListing = {
   emails: string[]
   webs: string[]
   maps: string[]
+  lat: number | null
+  lng: number | null
   ig: string
   fb: string
   k: { p: boolean; d: boolean; c: boolean; m: boolean; h: boolean }
@@ -228,6 +230,8 @@ export function toDiningListing(source: DiningSource, index: number): DiningList
     emails,
     webs: links.webs,
     maps: lat != null && lng != null ? [`https://www.google.com/maps/search/?api=1&query=${lat}%2C${lng}`] : [],
+    lat,
+    lng,
     ig: links.ig,
     fb: links.fb,
     k: {

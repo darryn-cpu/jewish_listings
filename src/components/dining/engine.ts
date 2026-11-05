@@ -1,5 +1,7 @@
 // @ts-nocheck
 // Phone directory interaction, adapted from shopping-dining-phone.html.
+import { closestByGeodesic, formatKmAway } from "@/lib/nearest"
+
 export function mountDining(host, listings, initialId) {
   const LISTINGS = listings
   const listeners = []
@@ -273,6 +275,7 @@ SCREENS.browse = () => {
   <div class="pad">
     <div class="sublab tightlab">Kashrut <span class="cnt">${S.kash.length ? 'Match all selected' : 'Any listing'}</span></div>
     ${kashChips()}
+    ${nearestSlot()}
   </div>
   ${feats.length ? `<div class="pad sec-row"><div><div class="eyebrow">Storefronts · ${esc(scopeLine())}</div><h2 class="h2s">Step inside</h2></div></div>
   <div class="rail">${feats.map(b => card(b, 'feat')).join('')}</div>` : `<div class="pad"><div class="empty"><div class="empty-ic">${ic('search', 26)}</div><h3>No listings in this view</h3><p>Clear a kashrut flag or switch city to see more of the directory.</p></div></div>`}
@@ -307,6 +310,7 @@ SCREENS.district = p => {
     ${cats ? `<div class="mt">${cats}</div>` : ''}
     <div class="sublab tightlab">Kashrut</div>
     ${kashChips()}
+    ${nearestSlot()}
     <div class="sortbar"><div class="seg2 mini" role="group" aria-label="Sort"><button class="${p.sort === 'az' ? 'on' : ''}" data-act="distsort" data-v="az">A–Z</button><button class="${p.sort === 'listed' ? 'on' : ''}" data-act="distsort" data-v="listed">As listed</button></div><div class="seg2 mini icons" role="group" aria-label="View"><button class="${!list_ ? 'on' : ''}" data-act="distview" data-v="cards" aria-label="Storefront cards">${ic('grid', 17)}</button><button class="${list_ ? 'on' : ''}" data-act="distview" data-v="list" aria-label="Compact list">${ic('list', 17)}</button></div></div>
     ${list}
   </div>`;
@@ -317,6 +321,11 @@ function mapHref(b) {
   if (b.maps.length) return b.maps[0];
   const q = b.address || (b.name + ' South Africa');
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+}
+function directionsHref(b) {
+  if (b.lat != null && b.lng != null) return `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}&travelmode=driving`;
+  const q = b.address || (b.name + ' South Africa');
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q) + '&travelmode=driving';
 }
 function hostOf(url) { try { return new URL(url).host.replace(/^www\./, ''); } catch (e) { return url; } }
 
@@ -426,7 +435,7 @@ function searchBody() {
 }
 SCREENS.search = () => `
   <div class="pad sr-top"><div class="sbox">${ic('search', 20)}<input id="q" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search a business, suburb or category" value="${esc(S.search.q)}" data-input="search" aria-label="Search"><button class="sclear ${S.search.q ? 'show' : ''}" id="sclear" data-act="clearq" aria-label="Clear search">${ic('close', 16)}</button></div></div>
-  <div class="pad"><div class="sublab tightlab">Kashrut <span class="cnt">${S.kash.length ? 'Match all selected' : 'Any listing'}</span></div>${kashChips()}</div>
+  <div class="pad"><div class="sublab tightlab">Kashrut <span class="cnt">${S.kash.length ? 'Match all selected' : 'Any listing'}</span></div>${kashChips()}${nearestSlot()}</div>
   <div class="pad" id="sres">${searchBody()}</div>`;
 
 SCREENS.saved = () => {
@@ -485,6 +494,69 @@ function cityHTML() {
     return `<div class="citybar"><button class="citypill" data-act="cityopen" aria-expanded="false" aria-label="Place: ${esc(label)}. Change place">${ic('pin', 14)}<span>${esc(label)}</span>${ic('chevD', 14, 'cv', 2.2)}</button></div>`;
   }
   return `<div class="cityseg" role="tablist" aria-label="Place">${CITIES.map(c => `<button class="${S.city === c ? 'on' : ''}" data-act="city" data-v="${c}" role="tab" aria-selected="${S.city === c}">${ic('pin', 13)}${c === 'Other' ? 'Other' : c}</button>`).join('')}</div>`;
+}
+const near = { phase: 'idle', lat: null, lng: null, error: '' };
+let nearGen = 0;
+function currentPool() {
+  const e = cur();
+  if (e.n === 'district') {
+    const p = e.p || {};
+    const d = D(p.d);
+    if (!d) return [];
+    const catIds = !p.c || p.c === 'all' ? d.cats : [p.c];
+    return visible().filter(b => inCats(b, catIds));
+  }
+  if (e.n === 'search') {
+    const q = S.search.q.trim();
+    const tag = S.search.tag;
+    if (tag) return LISTINGS.filter(b => inCity(b) && matchKash(b) && (b.cats.includes(tag) || (tag.length === 1 && b.k[tag])));
+    if (q) {
+      const toks = q.toLowerCase().split(/\s+/).filter(Boolean);
+      const match = txt => toks.every(t => txt.includes(t));
+      return LISTINGS.filter(b => inCity(b) && matchKash(b) && match(hay(b)));
+    }
+  }
+  return visible();
+}
+function nearestRows() {
+  if (near.lat == null || near.lng == null) return [];
+  return closestByGeodesic(currentPool(), near.lat, near.lng, 5);
+}
+function nearestCard(rows) {
+  const items = rows.map(({ item: b, km }, index) => {
+    const badge = index === 0 ? `CLOSEST · ${formatKmAway(km)}` : formatKmAway(km);
+    const address = b.address || 'No published address';
+    return `<li class="${index === 0 ? 'closest' : ''}">
+      <div class="near-badge">${esc(badge)}</div>
+      <div class="near-id">${logo(b, 'md')}<div><h3>${esc(b.name)}</h3><div class="biz-meta">${esc(metaOf(b))}</div></div></div>
+      <p class="near-addr">${ic('pin', 16)}<span>${esc(address)}</span></p>
+      <div class="near-actions">
+        <button class="btn primary small" type="button" data-act="open" data-id="${esc(b.id)}">View Storefront</button>
+        <a class="btn ghost small" href="${esc(directionsHref(b))}" target="_blank" rel="noopener">Directions</a>
+      </div>
+    </li>`;
+  }).join('');
+  return `<section class="near-card" aria-label="Nearest listings">
+    <div class="near-head"><h2>Closest to you</h2><button class="btn ghost small" type="button" data-act="neardismiss">Dismiss</button></div>
+    <ol class="near-list">${items}</ol>
+  </section>`;
+}
+function nearestHTML() {
+  const busy = near.phase === 'locating';
+  const button = `<button class="gps-btn" type="button" data-act="nearest" ${busy ? 'disabled' : ''}><span class="gps-orb" aria-hidden="true"></span>${ic('pin', 18)}What's closest to me?</button>`;
+  if (busy) return `${button}<div class="gps-locating" role="status" aria-live="polite"><span class="gps-spin" aria-hidden="true"></span>Locating nearest with GPS…</div>`;
+  if (near.phase === 'error') return `${button}<p class="near-error" role="alert">${esc(near.error)}</p>`;
+  if (near.phase !== 'open') return button;
+  const pool = currentPool();
+  const rows = nearestRows();
+  if (!pool.length) return `${button}<p class="near-error">No listings match the current filters.</p>`;
+  if (!rows.length) return `${button}<p class="near-error">These listings don’t have a published map location, so a distance can’t be calculated.</p>`;
+  return `${button}${nearestCard(rows)}`;
+}
+function nearestSlot() { return `<div id="near-slot">${nearestHTML()}</div>`; }
+function refreshNear() {
+  const slot = $('#near-slot');
+  if (slot) slot.innerHTML = nearestHTML();
 }
 const HUBS = [['Johannesburg', -26.2041, 28.0473], ['Cape Town', -33.9249, 18.4241]];
 function kmBetween(la1, lo1, la2, lo2) {
@@ -588,6 +660,39 @@ A.kash = d => {
   persist(); render({keep: true});
 };
 A.kashclear = () => { S.kash = []; persist(); render({keep: true}); };
+A.nearest = () => {
+  if (near.phase === 'locating') return;
+  if (!('geolocation' in navigator)) {
+    near.phase = 'error';
+    near.error = 'This device cannot share a location.';
+    refreshNear();
+    return;
+  }
+  const gen = ++nearGen;
+  near.phase = 'locating';
+  near.error = '';
+  refreshNear();
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (dead || gen !== nearGen) return;
+    near.lat = pos.coords.latitude;
+    near.lng = pos.coords.longitude;
+    near.phase = 'open';
+    refreshNear();
+  }, err => {
+    if (dead || gen !== nearGen) return;
+    near.phase = 'error';
+    near.error = err && err.code === 1
+      ? 'Location permission was denied. Allow location access, then try again.'
+      : 'Could not read your location. Try again.';
+    refreshNear();
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+};
+A.neardismiss = () => {
+  nearGen += 1;
+  near.phase = 'idle';
+  near.error = '';
+  refreshNear();
+};
 A.save = d => {
   const i = S.saved.indexOf(d.id);
   if (i > -1) { S.saved.splice(i, 1); toast('Removed from Saved'); }
@@ -610,6 +715,7 @@ INPUTS.search = t => {
   S.search.q = t.value; S.search.tag = null;
   const r = $('#sres'); if (r) r.innerHTML = searchBody();
   const c = $('#sclear'); if (c) c.classList.toggle('show', !!t.value);
+  if (near.phase === 'open') refreshNear();
 };
 
 // Android motors barely register pulses under ~15ms, so keep taps in the 18-30ms range.

@@ -66,6 +66,19 @@ describe("dining listings", () => {
     expect(toDiningListing(source({ tags: [{ tag: { slug: "legal" } }] }), 0)).toBeNull()
   })
 
+  it("keeps a published map point for distance ranking", () => {
+    const listing = toDiningListing(source({
+      locations: [{
+        ...source().locations[0],
+        latitude: -26.1449,
+        longitude: 28.0416,
+      }],
+    }), 0)
+    expect(listing?.lat).toBe(-26.1449)
+    expect(listing?.lng).toBe(28.0416)
+    expect(listing?.maps[0]).toContain("-26.1449%2C28.0416")
+  })
+
   it("hides placeholder contact details", () => {
     const listing = toDiningListing(source({
       contactPhone: "Not supplied",

@@ -102,6 +102,7 @@ model Business {
   discountDetails           String?
   status                    ApplicationStatus    @default(PENDING_REVIEW)
   isTest                    Boolean              @default(false)
+  disabledAt                DateTime?
   reviewerId                String?
   reviewer                  AdminUser?           @relation("Reviewer", fields: [reviewerId], references: [id])
   reviewerNotes             String?

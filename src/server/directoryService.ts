@@ -2,7 +2,7 @@ import "server-only"
 import { Prisma, type Prisma as PrismaTypes } from "@prisma/client"
 import { prisma } from "@/server/prisma"
 import { nearestDistanceKm, toPublicDetail, toPublicListItem, type PublicSource } from "@/server/publicDto"
-import { directoryWhere, type DirectoryQuery } from "@/server/schemas"
+import { directoryWhere, publicListingFilter, type DirectoryQuery } from "@/server/schemas"
 
 const publicInclude = {
   industry: { select: { slug: true, name: true } },
@@ -63,7 +63,7 @@ export async function listDirectory(query: DirectoryQuery) {
 
 export async function getApprovedBusiness(id: string) {
   const row = await prisma.business.findFirst({
-    where: { id, status: "APPROVED" },
+    where: { id, ...publicListingFilter },
     include: publicInclude,
   })
   if (!row) return null

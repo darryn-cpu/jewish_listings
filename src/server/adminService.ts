@@ -8,7 +8,7 @@ import { sendMail } from "@/server/mailer"
 import { prisma } from "@/server/prisma"
 import { isRefCode } from "@/server/refCode"
 import { assertTransition, assertTransitionInput, type ApplicationStatusName, type RejectionReasonName } from "@/server/stateMachine"
-import { signedDownloadUrl } from "@/server/storage"
+import { deleteStoredObjects, signedDownloadUrl } from "@/server/storage"
 import { tokenMatches } from "@/server/token"
 
 let dummyHash: string | null = null
@@ -38,7 +38,8 @@ export async function createStaffUser(input: { email: string; password: string; 
 export function parseQueueQuery(params: URLSearchParams) {
   const statusValue = params.get("status")
   const statuses: ApplicationStatusName[] = ["PENDING_REVIEW", "REQUIRES_INFO", "APPROVED", "REJECTED"]
-  if (statusValue && !statuses.includes(statusValue as ApplicationStatusName)) {
+  const disabledOnly = statusValue === "DISABLED"
+  if (statusValue && !disabledOnly && !statuses.includes(statusValue as ApplicationStatusName)) {
     throw new ApiError(400, "VALIDATION_ERROR", "That status filter is not recognised.")
   }
   const pageValue = Number(params.get("page") || "1")
@@ -51,7 +52,8 @@ export function parseQueueQuery(params: URLSearchParams) {
   }
   const search = params.get("q")?.trim()
   return {
-    status: (statusValue || undefined) as ApplicationStatus | undefined,
+    status: (disabledOnly ? "APPROVED" : statusValue || undefined) as ApplicationStatus | undefined,
+    disabledOnly,
     search: search ? search.slice(0, 80) : undefined,
     sort: params.get("sort") === "asc" ? "asc" as const : "desc" as const,
     page: pageValue,
@@ -62,6 +64,7 @@ export function parseQueueQuery(params: URLSearchParams) {
 export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
   const where: Prisma.BusinessWhereInput = {
     status: query.status,
+    ...(query.disabledOnly ? { disabledAt: { not: null } } : {}),
     ...(query.search
       ? {
           OR: [
@@ -85,6 +88,7 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
         legalName: true,
         tradingName: true,
         status: true,
+        disabledAt: true,
         createdAt: true,
         contactEmail: true,
         isTest: true,
@@ -102,6 +106,7 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
       legalName: row.legalName,
       tradingName: row.tradingName,
       status: row.status,
+      disabledAt: row.disabledAt?.toISOString() ?? null,
       isTest: row.isTest,
       createdAt: row.createdAt.toISOString(),
       contactEmail: row.contactEmail,
@@ -230,11 +235,74 @@ export async function changeApplicationStatus(
   return { id: updated.id, refCode: updated.refCode, status: updated.status, emailSent }
 }
 
+function assertApprovedListing(status: ApplicationStatus) {
+  if (status !== "APPROVED") {
+    throw new ApiError(409, "NOT_A_LISTING", "Only an approved listing can be disabled or removed.")
+  }
+}
+
+export async function setListingDisabled(id: string, adminUserId: string, disabled: boolean) {
+  const current = await prisma.business.findUnique({ where: { id }, select: { id: true, status: true, disabledAt: true } })
+  if (!current) throw new ApiError(404, "NOT_FOUND", "That application does not exist.")
+  assertApprovedListing(current.status)
+  const already = current.disabledAt != null
+  if (already === disabled) return { id: current.id, disabled }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.business.update({
+      where: { id },
+      data: { disabledAt: disabled ? new Date() : null },
+    })
+    await tx.auditLog.create({
+      data: {
+        businessId: id,
+        adminUserId,
+        previousStatus: current.status,
+        newStatus: current.status,
+        comment: disabled ? "Listing disabled" : "Listing enabled",
+      },
+    })
+  })
+  invalidateDirectoryCache()
+  return { id, disabled }
+}
+
+export async function removeListing(id: string, adminUserId: string) {
+  const current = await prisma.business.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      refCode: true,
+      status: true,
+      cipcDocKey: true,
+      proofOfAddressKey: true,
+      jewishProofDocKey: true,
+      kosherCertification: { select: { certDocKey: true } },
+    },
+  })
+  if (!current) throw new ApiError(404, "NOT_FOUND", "That application does not exist.")
+  assertApprovedListing(current.status)
+  const objectKeys = [current.cipcDocKey, current.proofOfAddressKey, current.jewishProofDocKey, current.kosherCertification?.certDocKey]
+    .filter((key): key is string => Boolean(key))
+
+  await prisma.$transaction(async (tx) => {
+    if (objectKeys.length) {
+      await tx.documentUpload.deleteMany({ where: { objectKey: { in: objectKeys } } })
+    }
+    await tx.business.delete({ where: { id } })
+  })
+  await deleteStoredObjects(objectKeys)
+  invalidateDirectoryCache()
+  console.info(JSON.stringify({ event: "listing_removed", businessId: id, refCode: current.refCode, adminUserId }))
+  return { id, refCode: current.refCode, removed: true as const }
+}
+
 export async function getStats() {
   const rows = await prisma.$queryRaw<Array<{
     total: number
     pending: number
     approved: number
+    disabled: number
     requiresInfo: number
     rejected: number
     johannesburg: number
@@ -245,22 +313,23 @@ export async function getStats() {
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE status = 'PENDING_REVIEW'::"ApplicationStatus")::int AS pending,
       COUNT(*) FILTER (WHERE status = 'APPROVED'::"ApplicationStatus")::int AS approved,
+      COUNT(*) FILTER (WHERE status = 'APPROVED'::"ApplicationStatus" AND "disabledAt" IS NOT NULL)::int AS disabled,
       COUNT(*) FILTER (WHERE status = 'REQUIRES_INFO'::"ApplicationStatus")::int AS "requiresInfo",
       COUNT(*) FILTER (WHERE status = 'REJECTED'::"ApplicationStatus")::int AS rejected,
       COUNT(*) FILTER (
-        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND "disabledAt" IS NULL AND EXISTS (
           SELECT 1 FROM "BusinessLocation" loc
           WHERE loc."businessId" = "Business".id AND loc.city = 'JOHANNESBURG'::"City"
         )
       )::int AS johannesburg,
       COUNT(*) FILTER (
-        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND "disabledAt" IS NULL AND EXISTS (
           SELECT 1 FROM "BusinessLocation" loc
           WHERE loc."businessId" = "Business".id AND loc.city = 'CAPE_TOWN'::"City"
         )
       )::int AS "capeTown",
       COUNT(*) FILTER (
-        WHERE status = 'APPROVED'::"ApplicationStatus" AND EXISTS (
+        WHERE status = 'APPROVED'::"ApplicationStatus" AND "disabledAt" IS NULL AND EXISTS (
           SELECT 1 FROM "KosherCertification" cert
           WHERE cert."businessId" = "Business".id
         )
@@ -272,6 +341,7 @@ export async function getStats() {
     total: Number(row?.total ?? 0),
     pending: Number(row?.pending ?? 0),
     approved: Number(row?.approved ?? 0),
+    disabled: Number(row?.disabled ?? 0),
     requiresInfo: Number(row?.requiresInfo ?? 0),
     rejected: Number(row?.rejected ?? 0),
     johannesburg: Number(row?.johannesburg ?? 0),

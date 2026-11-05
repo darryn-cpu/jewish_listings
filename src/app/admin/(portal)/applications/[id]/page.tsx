@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ApplicationDocuments, DocumentsFallback } from "./documents"
+import { ListingActions } from "./listing-actions"
 import { ReviewActions } from "./review-actions"
 import { LinkPending } from "@/components/link-pending"
 import { CITY_LABEL, FORMAT_LABEL, MODEL_LABEL, REASON_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from "@/lib/labels"
@@ -31,6 +32,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         </div>
         <span className="chips">
           {application.isTest ? <span className="status status-test">Test</span> : null}
+          {application.disabledAt ? <span className="status status-disabled">Disabled</span> : null}
           <span className={`status status-${application.status}`}>{STATUS_LABEL[application.status]}</span>
         </span>
       </header>
@@ -89,19 +91,23 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         </Suspense>
       ) : null}
 
+      {application.status === "APPROVED" ? <ListingActions id={application.id} disabled={application.disabledAt != null} /> : null}
       <ReviewActions id={application.id} />
 
       <section className="panel audit">
         <h2>Audit trail</h2>
         {application.auditLogs.length === 0 ? <p className="muted">No status changes yet.</p> : null}
-        {application.auditLogs.map((entry) => (
-          <article key={entry.id}>
-            <p><strong>{STATUS_LABEL[entry.previousStatus]}</strong> to <strong>{STATUS_LABEL[entry.newStatus]}</strong></p>
-            <p className="tiny">{entry.adminEmail} · {new Date(entry.timestamp).toLocaleString("en-ZA")}</p>
-            {entry.reasonCode ? <p>{REASON_LABEL[entry.reasonCode]}</p> : null}
-            {entry.comment ? <p>{entry.comment}</p> : null}
-          </article>
-        ))}
+        {application.auditLogs.map((entry) => {
+          const unchanged = entry.previousStatus === entry.newStatus
+          return (
+            <article key={entry.id}>
+              {unchanged ? <p><strong>{entry.comment}</strong></p> : <p><strong>{STATUS_LABEL[entry.previousStatus]}</strong> to <strong>{STATUS_LABEL[entry.newStatus]}</strong></p>}
+              <p className="tiny">{entry.adminEmail} · {new Date(entry.timestamp).toLocaleString("en-ZA")}</p>
+              {entry.reasonCode ? <p>{REASON_LABEL[entry.reasonCode]}</p> : null}
+              {!unchanged && entry.comment ? <p>{entry.comment}</p> : null}
+            </article>
+          )
+        })}
       </section>
     </main>
   )

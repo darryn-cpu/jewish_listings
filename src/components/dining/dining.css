@@ -186,6 +186,31 @@
 .phone .hscroll::-webkit-scrollbar{display:none}
 .phone .hscroll.tight{padding-bottom:4px}
 .phone .hscroll.quick .chip{background:#fffdf8}
+.phone .gps-btn{width:100%;margin-top:12px;height:50px;padding:0 16px;border-radius:18px;border:1px solid var(--accent-line);background:#fffdf8;display:flex;align-items:center;justify-content:center;gap:8px;font:700 15px var(--sans);color:var(--accent-ink);cursor:pointer;box-shadow:var(--shadow);transition:transform .2s var(--spring)}
+.phone .gps-btn:active{transform:scale(.98)}
+.phone .gps-btn .ic{color:var(--accent-text)}
+.phone .gps-btn[disabled]{opacity:.7;cursor:progress}
+.phone .gps-orb{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px var(--ok-bg);flex:none}
+.phone .gps-locating{margin-top:12px;display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);font:700 14px var(--sans);color:var(--text-2);box-shadow:var(--shadow)}
+.phone .gps-spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--accent-line);border-top-color:var(--accent-2);animation:gpsSpin .7s linear infinite;flex:none}
+@keyframes gpsSpin{to{transform:rotate(360deg)}}
+.phone .near-error{margin:12px 0 0;color:var(--err);font:600 13.5px var(--sans)}
+.phone .near-card{margin-top:12px;background:var(--surface);border:1px solid var(--accent-line);border-radius:26px;padding:14px;box-shadow:var(--shadow)}
+.phone .near-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.phone .near-head h2{font:800 18px/1.1 var(--display);letter-spacing:-.03em}
+.phone .near-head .btn{height:36px;padding:0 12px}
+.phone .near-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.phone .near-list li{display:grid;gap:10px;padding-top:14px;border-top:1px solid var(--line)}
+.phone .near-list li.closest{padding-top:4px;border-top:0}
+.phone .near-badge{display:inline-flex;align-items:center;width:fit-content;height:26px;padding:0 10px;border-radius:13px;background:var(--glass-2);color:var(--text-2);font:800 11px var(--sans);letter-spacing:.06em}
+.phone .near-list li.closest .near-badge{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:var(--accent-ink)}
+.phone .near-id{display:flex;align-items:center;gap:12px;min-width:0}
+.phone .near-id h3{font:800 18px/1.1 var(--display);letter-spacing:-.03em}
+.phone .near-id .biz-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phone .near-addr{display:flex;align-items:flex-start;gap:6px;color:var(--text-2);font-size:13.5px}
+.phone .near-addr .ic{margin-top:2px;color:var(--accent-text)}
+.phone .near-actions{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr);gap:8px}
+.phone .near-actions .btn{width:100%;padding:0 10px}
 .phone .tag{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:13px;background:var(--accent-soft);color:var(--accent-text);font:700 11.5px var(--sans)}
 .phone .jo{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:13px;border:1px solid var(--accent-line);color:var(--accent-text);font:700 11px var(--sans);letter-spacing:.03em;white-space:nowrap}
 .phone .catpill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:var(--glass-2);border:1px solid var(--line);color:var(--text-2);font:700 11.5px var(--sans);white-space:nowrap}

@@ -30,6 +30,7 @@ export default async function QueuePage({
     ["Applications", stats.total],
     ["Pending", stats.pending],
     ["Approved", stats.approved],
+    ["Disabled", stats.disabled],
     ["Needs info", stats.requiresInfo],
     ["Johannesburg", stats.johannesburg],
     ["Cape Town", stats.capeTown],
@@ -59,6 +60,7 @@ export default async function QueuePage({
             <select name="status" defaultValue={params.get("status") ?? ""}>
               <option value="">All</option>
               {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              <option value="DISABLED">Disabled</option>
             </select>
           </label>
           <label className="field">
@@ -78,6 +80,7 @@ export default async function QueuePage({
               <h2>{item.tradingName || item.legalName}</h2>
               <span className="chips">
                 {item.isTest ? <span className="status status-test">Test</span> : null}
+                {item.disabledAt ? <span className="status status-disabled">Disabled</span> : null}
                 <span className={`status status-${item.status}`}>{STATUS_LABEL[item.status as StatusCode]}</span>
               </span>
             </div>
