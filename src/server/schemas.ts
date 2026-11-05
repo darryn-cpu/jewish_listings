@@ -120,15 +120,27 @@ export const ownershipSchema = z.object({
 })
 
 export const kosherSchema = z.object({
-  brandName: requiredText(160, "Kosher brand"),
-  bethDinCertNumber: requiredText(80, "Beth Din certificate number"),
-  certUploadId: requiredText(64, "Beth Din certificate"),
-  allowsBulkOrdering: z.boolean(),
+  brandName: optionalText(160),
+  bethDinCertNumber: optionalText(80),
+  certUploadId: optionalText(64),
+  allowsBulkOrdering: z.boolean().optional().default(false),
   meat: z.boolean().optional().default(false),
   dairy: z.boolean().optional().default(false),
   chalavYisrael: z.boolean().optional().default(false),
   parev: z.boolean().optional().default(false),
   mehadrin: z.boolean().optional().default(false),
+}).superRefine((kosher, ctx) => {
+  const started = Boolean(kosher.brandName || kosher.bethDinCertNumber || kosher.certUploadId)
+  if (!started) return
+  if (!kosher.brandName) {
+    ctx.addIssue({ code: "custom", path: ["brandName"], message: "Kosher brand is required." })
+  }
+  if (!kosher.bethDinCertNumber) {
+    ctx.addIssue({ code: "custom", path: ["bethDinCertNumber"], message: "Beth Din certificate number is required." })
+  }
+  if (!kosher.certUploadId) {
+    ctx.addIssue({ code: "custom", path: ["certUploadId"], message: "Beth Din certificate is required." })
+  }
 })
 
 export const legalSchema = z.object({

@@ -6,6 +6,7 @@ import { prisma } from "@/server/prisma"
 import { receiptEmail } from "@/server/mailTemplates"
 import { sendMail } from "@/server/mailer"
 import { formatRefCode } from "@/server/refCode"
+import { hasFoodType, MARKS_ONLY_CERT_KEY, needsFoodType, FOOD_TYPE_MESSAGE } from "@/lib/foodType"
 import type { ApplicationInput } from "@/server/schemas"
 import { assertStoredObject, createUploadTarget } from "@/server/storage"
 import { createStatusToken } from "@/server/token"
@@ -66,7 +67,7 @@ export async function submitApplication(input: ApplicationInput) {
   const [industry, synagogue] = await Promise.all([
     prisma.industry.findUnique({
       where: { id: input.categorization.industryId },
-      include: { tags: { select: { id: true } } },
+      include: { tags: { select: { id: true, slug: true } } },
     }),
     input.ownership.synagogueId
       ? prisma.synagogue.findUnique({ where: { id: input.ownership.synagogueId } })
@@ -74,7 +75,7 @@ export async function submitApplication(input: ApplicationInput) {
     requireUpload(input.identity.proofOfAddressUploadId, "ADDRESS"),
     requireUpload(input.ownership.jewishProofUploadId, "JEWISH_PROOF"),
     input.identity.cipcUploadId ? requireUpload(input.identity.cipcUploadId, "CIPC") : Promise.resolve(null),
-    input.kosher ? requireUpload(input.kosher.certUploadId, "BETH_DIN") : Promise.resolve(null),
+    input.kosher?.certUploadId ? requireUpload(input.kosher.certUploadId, "BETH_DIN") : Promise.resolve(null),
   ])
   if (!industry) {
     throw new ApiError(400, "INDUSTRY_NOT_FOUND", "Choose an industry from the list.")
@@ -82,6 +83,10 @@ export async function submitApplication(input: ApplicationInput) {
   const allowedTags = new Set(industry.tags.map((tag) => tag.id))
   if (input.categorization.tagIds.some((tagId) => !allowedTags.has(tagId))) {
     throw new ApiError(400, "TAG_MISMATCH", "Each service tag must belong to the chosen industry.")
+  }
+  const selectedSlugs = industry.tags.filter((tag) => input.categorization.tagIds.includes(tag.id)).map((tag) => tag.slug)
+  if (needsFoodType(selectedSlugs) && !hasFoodType(input.kosher)) {
+    throw new ApiError(400, "FOOD_TYPE_REQUIRED", FOOD_TYPE_MESSAGE)
   }
   if (input.ownership.synagogueId && !synagogue) {
     throw new ApiError(400, "SYNAGOGUE_NOT_FOUND", "Choose a synagogue from the list.")
@@ -106,7 +111,9 @@ export async function submitApplication(input: ApplicationInput) {
     const cipcDocKey = input.identity.cipcUploadId ? await consumeUpload(tx, input.identity.cipcUploadId, "CIPC") : null
     const proofOfAddressKey = await consumeUpload(tx, input.identity.proofOfAddressUploadId, "ADDRESS")
     const jewishProofDocKey = await consumeUpload(tx, input.ownership.jewishProofUploadId, "JEWISH_PROOF")
-    const certDocKey = input.kosher ? await consumeUpload(tx, input.kosher.certUploadId, "BETH_DIN") : null
+    const certDocKey = input.kosher?.certUploadId ? await consumeUpload(tx, input.kosher.certUploadId, "BETH_DIN") : null
+    const kosher = input.kosher
+    const saveKosher = Boolean(kosher && (certDocKey || hasFoodType(kosher)))
 
     return tx.business.create({
       data: {
@@ -139,18 +146,18 @@ export async function submitApplication(input: ApplicationInput) {
         status: "PENDING_REVIEW",
         locations: { create: locations },
         tags: { create: input.categorization.tagIds.map((tagId) => ({ tagId })) },
-        kosherCertification: input.kosher && certDocKey
+        kosherCertification: saveKosher && kosher
           ? {
               create: {
-                brandName: input.kosher.brandName,
-                bethDinCertNumber: input.kosher.bethDinCertNumber,
-                certDocKey,
-                allowsBulkOrdering: input.kosher.allowsBulkOrdering,
-                meat: input.kosher.meat,
-                dairy: input.kosher.dairy,
-                chalavYisrael: input.kosher.chalavYisrael,
-                parev: input.kosher.parev,
-                mehadrin: input.kosher.mehadrin,
+                brandName: kosher.brandName || input.identity.tradingName || input.identity.legalName,
+                bethDinCertNumber: kosher.bethDinCertNumber || "Not supplied",
+                certDocKey: certDocKey || MARKS_ONLY_CERT_KEY,
+                allowsBulkOrdering: kosher.allowsBulkOrdering,
+                meat: kosher.meat,
+                dairy: kosher.dairy,
+                chalavYisrael: kosher.chalavYisrael,
+                parev: kosher.parev,
+                mehadrin: kosher.mehadrin,
               },
             }
           : undefined,

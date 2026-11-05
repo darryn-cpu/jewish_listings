@@ -1,6 +1,7 @@
 import "server-only"
 import bcrypt from "bcryptjs"
 import { Prisma, type ApplicationStatus } from "@prisma/client"
+import { isApplicantDocument } from "@/lib/foodType"
 import { ApiError } from "@/server/errors"
 import { invalidateDirectoryCache } from "@/server/cache"
 import { requiresInfoEmail } from "@/server/mailTemplates"
@@ -118,7 +119,7 @@ export async function listQueue(query: ReturnType<typeof parseQueueQuery>) {
 
 export async function loadApplicationDocuments(slots: Array<{ purpose: string; label: string; objectKey: string | null }>) {
   const pending = slots.flatMap((slot) => {
-    if (!slot.objectKey || slot.objectKey.startsWith("import/koshersa/")) return []
+    if (!isApplicantDocument(slot.objectKey)) return []
     return [{ purpose: slot.purpose, label: slot.label, objectKey: slot.objectKey }]
   })
   if (!pending.length) return []

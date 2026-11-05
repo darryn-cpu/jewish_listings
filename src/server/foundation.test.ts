@@ -143,6 +143,9 @@ describe("application schema", () => {
       },
     })).success).toBe(true)
     expect(applicationSchema.safeParse(application({
+      kosher: { meat: true },
+    })).success).toBe(true)
+    expect(applicationSchema.safeParse(application({
       ownership: { ...application().ownership, synagogueId: undefined, synagogueOtherName: undefined },
     })).success).toBe(false)
   })

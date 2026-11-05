@@ -1,9 +1,10 @@
 "use client"
 
 import Script from "next/script"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Spinner } from "@/components/spinner"
 import type { DirectoryMetadata } from "@/lib/directory"
+import { FOOD_TYPE_MESSAGE, hasFoodType, needsFoodType } from "@/lib/foodType"
 import { CITY_LABEL, REGISTRATION_LABEL } from "@/lib/labels"
 
 type RegistrationType = keyof typeof REGISTRATION_LABEL
@@ -96,6 +97,9 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
   const [accuracyDeclared, setAccuracyDeclared] = useState(false)
 
   const industry = metadata.industries.find((item) => item.id === industryId) ?? metadata.industries[0]
+  const selectedTagSlugs = industry?.tags.filter((tag) => tagIds.includes(tag.id)).map((tag) => tag.slug) ?? []
+  const foodTypeRequired = needsFoodType(selectedTagSlugs)
+  const foodTypeChosen = hasFoodType({ meat, dairy, chalavYisrael, parev, mehadrin })
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
   function issueFor(path: string) {
@@ -118,6 +122,7 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
     if (step === 3 && (!rabbiContactName.trim() || !rabbiContactPhone.trim() || !jewishProofUploadId)) return "Add the rabbi contact and the verification document."
     if (step === 3 && !synagogueChoice) return "Choose a synagogue or Other."
     if (step === 3 && synagogueChoice === "other" && !synagogueOtherName.trim()) return "Enter the synagogue name."
+    if (step === 4 && foodTypeRequired && !foodTypeChosen) return FOOD_TYPE_MESSAGE
     if (step === 4 && offersKosher && (!brandName.trim() || !bethDinCertNumber.trim() || !certUploadId)) return "Complete the kosher certificate or skip this step."
     if (step === 5 && offersDiscount && !discountDetails.trim()) return "Describe the community discount."
     if (step === 5 && (!consentAccepted || !accuracyDeclared)) return "Both declarations are required."
@@ -174,8 +179,18 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
             rabbiContactPhone,
             jewishProofUploadId,
           },
-          kosher: offersKosher
-            ? { brandName, bethDinCertNumber, certUploadId, allowsBulkOrdering, meat, dairy, chalavYisrael, parev, mehadrin }
+          kosher: offersKosher || foodTypeRequired
+            ? {
+                brandName: offersKosher ? brandName : undefined,
+                bethDinCertNumber: offersKosher ? bethDinCertNumber : undefined,
+                certUploadId: offersKosher ? certUploadId : undefined,
+                allowsBulkOrdering: offersKosher ? allowsBulkOrdering : false,
+                meat,
+                dairy,
+                chalavYisrael,
+                parev,
+                mehadrin,
+              }
             : undefined,
           legal: { offersDiscount, discountDetails: offersDiscount ? discountDetails : undefined, consentAccepted, accuracyDeclared },
         }),
@@ -332,13 +347,12 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
             <span>Jewish ownership ({ownership}%)</span>
             <input type="range" min={1} max={100} value={ownership} onChange={(event) => setOwnership(Number(event.target.value))} />
           </label>
-          <Field path="ownership.synagogueId" label="Synagogue" issue={issueFor("ownership.synagogueId")}>
-            <select value={synagogueChoice} onChange={(event) => setSynagogueChoice(event.target.value)}>
-              <option value="">Choose</option>
-              {metadata.synagogues.map((synagogue) => <option key={synagogue.id} value={synagogue.id}>{synagogue.name} · {CITY_LABEL[synagogue.city]}</option>)}
-              <option value="other">Other</option>
-            </select>
-          </Field>
+          <SynagoguePicker
+            synagogues={metadata.synagogues}
+            value={synagogueChoice}
+            issue={issueFor("ownership.synagogueId")}
+            onChange={setSynagogueChoice}
+          />
           {synagogueChoice === "other" ? (
             <Field path="ownership.synagogueOtherName" label="Synagogue name" issue={issueFor("ownership.synagogueOtherName")}><input value={synagogueOtherName} onChange={(event) => setSynagogueOtherName(event.target.value)} /></Field>
           ) : null}
@@ -349,6 +363,17 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
       ) : null}
       {step === 4 ? (
         <div className="stack">
+          {foodTypeRequired || offersKosher ? (
+            <div className="stack" role="group" aria-label="Food type">
+              <p className="muted">{foodTypeRequired ? "Restaurant and food listings need at least one food type." : "Mark the food type that applies."}</p>
+              <label className={foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? "check bad" : "check"}><input type="checkbox" checked={meat} onChange={(event) => setMeat(event.target.checked)} /> Meat</label>
+              <label className={foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? "check bad" : "check"}><input type="checkbox" checked={dairy} onChange={(event) => setDairy(event.target.checked)} /> Dairy</label>
+              <label className={foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? "check bad" : "check"}><input type="checkbox" checked={chalavYisrael} onChange={(event) => setChalavYisrael(event.target.checked)} /> Chalav Yisrael</label>
+              <label className={foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? "check bad" : "check"}><input type="checkbox" checked={parev} onChange={(event) => setParev(event.target.checked)} /> Parev</label>
+              <label className={foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? "check bad" : "check"}><input type="checkbox" checked={mehadrin} onChange={(event) => setMehadrin(event.target.checked)} /> Mehadrin</label>
+              {foodTypeRequired && !foodTypeChosen && error === FOOD_TYPE_MESSAGE ? <p className="ferr">{FOOD_TYPE_MESSAGE}</p> : null}
+            </div>
+          ) : null}
           <label className="check"><input type="checkbox" checked={offersKosher} onChange={(event) => setOffersKosher(event.target.checked)} /> This business has a kosher brand</label>
           {offersKosher ? (
             <>
@@ -356,13 +381,8 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
               <Field path="kosher.bethDinCertNumber" label="Beth Din certificate number" issue={issueFor("kosher.bethDinCertNumber")}><input value={bethDinCertNumber} onChange={(event) => setBethDinCertNumber(event.target.value)} /></Field>
               <UploadField purpose="BETH_DIN" label="Kashrut certificate" issue={issueFor("kosher.certUploadId")} onUploaded={setCertUploadId} />
               <label className="check"><input type="checkbox" checked={allowsBulkOrdering} onChange={(event) => setAllowsBulkOrdering(event.target.checked)} /> Wholesale or bulk purchasing</label>
-              <label className="check"><input type="checkbox" checked={meat} onChange={(event) => setMeat(event.target.checked)} /> Meat</label>
-              <label className="check"><input type="checkbox" checked={dairy} onChange={(event) => setDairy(event.target.checked)} /> Dairy</label>
-              <label className="check"><input type="checkbox" checked={chalavYisrael} onChange={(event) => setChalavYisrael(event.target.checked)} /> Chalav Yisrael</label>
-              <label className="check"><input type="checkbox" checked={parev} onChange={(event) => setParev(event.target.checked)} /> Parev</label>
-              <label className="check"><input type="checkbox" checked={mehadrin} onChange={(event) => setMehadrin(event.target.checked)} /> Mehadrin</label>
             </>
-          ) : <p className="muted">Leave this off if the business is not a kosher food brand.</p>}
+          ) : foodTypeRequired ? null : <p className="muted">Leave this off if the business is not a kosher food brand.</p>}
         </div>
       ) : null}
       {step === 5 ? (
@@ -395,6 +415,109 @@ export function ApplyForm({ metadata }: { metadata: DirectoryMetadata }) {
         )}
       </div>
     </section>
+  )
+}
+
+function SynagoguePicker({
+  synagogues,
+  value,
+  issue,
+  onChange,
+}: {
+  synagogues: DirectoryMetadata["synagogues"]
+  value: string
+  issue?: string
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const pickerRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const selected = synagogues.find((synagogue) => synagogue.id === value)
+  const selectedLabel = value === "other" ? "Other" : selected ? `${selected.name} · ${CITY_LABEL[selected.city]}` : ""
+  const normalized = query.trim().toLowerCase()
+  const matches = synagogues.filter((synagogue) => {
+    if (!normalized) return true
+    return `${synagogue.name} ${CITY_LABEL[synagogue.city]}`.toLowerCase().includes(normalized)
+  })
+  const showOther = !normalized || "other".includes(normalized)
+
+  useEffect(() => {
+    if (!open) return
+    searchRef.current?.focus()
+    function onPointerDown(event: MouseEvent) {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery("")
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false)
+        setQuery("")
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [open])
+
+  function choose(next: string) {
+    onChange(next)
+    setOpen(false)
+    setQuery("")
+  }
+
+  return (
+    <div className={issue ? "field bad" : "field"}>
+      <span id="synagogue-label">Synagogue</span>
+      <div className="shul-picker" ref={pickerRef}>
+        <button
+          type="button"
+          className={selectedLabel ? "shul-trigger" : "shul-trigger is-empty"}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-labelledby="synagogue-label"
+          onClick={() => {
+            setQuery("")
+            setOpen((current) => !current)
+          }}
+        >
+          {selectedLabel || "Choose"}
+        </button>
+        {open ? (
+          <div className="shul-menu">
+            <input
+              ref={searchRef}
+              className="shul-search"
+              value={query}
+              placeholder="Search shuls"
+              aria-label="Search shuls"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <ul role="listbox" aria-labelledby="synagogue-label">
+              {matches.map((synagogue) => (
+                <li key={synagogue.id}>
+                  <button type="button" className="shul-option" role="option" aria-selected={value === synagogue.id} onClick={() => choose(synagogue.id)}>
+                    {synagogue.name} · {CITY_LABEL[synagogue.city]}
+                  </button>
+                </li>
+              ))}
+              {showOther ? (
+                <li>
+                  <button type="button" className="shul-option" role="option" aria-selected={value === "other"} onClick={() => choose("other")}>Other</button>
+                </li>
+              ) : null}
+              {matches.length === 0 && !showOther ? <li className="shul-empty">No matching shuls</li> : null}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+      {issue ? <span className="ferr">{issue}</span> : null}
+    </div>
   )
 }
 

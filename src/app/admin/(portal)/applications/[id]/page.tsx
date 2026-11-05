@@ -6,6 +6,7 @@ import { ListingActions } from "./listing-actions"
 import { ReviewActions } from "./review-actions"
 import { LinkPending } from "@/components/link-pending"
 import { CITY_LABEL, FORMAT_LABEL, MODEL_LABEL, REASON_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from "@/lib/labels"
+import { isApplicantDocument } from "@/lib/foodType"
 import { getAdminApplication } from "@/server/adminService"
 
 export const dynamic = "force-dynamic"
@@ -19,7 +20,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     { purpose: "ADDRESS", label: "Proof of address", objectKey: application.proofOfAddressKey },
     { purpose: "JEWISH_PROOF", label: "Rabbinical verification", objectKey: application.jewishProofDocKey },
     { purpose: "BETH_DIN", label: "Beth Din certificate", objectKey: application.kosherCertification?.certDocKey ?? null },
-  ].filter((slot) => slot.objectKey && !slot.objectKey.startsWith("import/koshersa/"))
+  ].filter((slot) => isApplicantDocument(slot.objectKey))
 
   return (
     <main className="page">
