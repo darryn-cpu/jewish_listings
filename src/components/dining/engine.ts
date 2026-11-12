@@ -139,6 +139,16 @@ function metaOf(b) {
 }
 
 const sfCache = new Map();
+// One-listing photo stand-in, so the card art can be compared with the illustration.
+const TEST_PHOTOS = [
+  ["burger & brew", "/test/burger-brew.jpg", "center top"],
+  ["moishes butchery", "/test/moishes-butchery.jpg?v=2", "center center"],
+  ["corner cafe", "/test/corner-cafe.jpg", "center 40%"],
+];
+function testPhoto(b) {
+  const nm = String(b.name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
+  return TEST_PHOTOS.find(([name]) => nm === name || nm.startsWith(name + " ")) || null;
+}
 function awning(n) {
   const w = 276 / n, r = (w / 2).toFixed(2);
   let html = '';
@@ -146,6 +156,15 @@ function awning(n) {
   return html;
 }
 function storefront(b, lite) {
+  const photo = testPhoto(b);
+  if (photo) {
+    const key = 'p' + b.id;
+    const hit = sfCache.get(key);
+    if (hit) return hit;
+    const html = `<div class="sf photo" style="--h:${hueOf(b)};--photo:${photo[2]}"><img src="${esc(photo[1])}" alt=""></div>`;
+    sfCache.set(key, html);
+    return html;
+  }
   const key = (lite ? 'l' : 'f') + b.id;
   const hit = sfCache.get(key);
   if (hit) return hit;

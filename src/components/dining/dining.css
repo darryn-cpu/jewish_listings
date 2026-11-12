@@ -242,6 +242,7 @@
 /* ---------- storefront art (generated SVG) ---------- */
 .phone .sf{--h:40;position:relative;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,hsl(calc(var(--h) + 18) 78% 58%) 0%,hsl(var(--h) 70% 38%) 52%,hsl(calc(var(--h) - 10) 60% 15%) 100%)}
 .phone .sf svg{display:block;width:100%;height:100%}
+.phone .sf.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--photo,center)}
 .phone .sf svg.sf-glyph{width:36px;height:36px}
 .phone .sf-stars circle{fill:#fff;opacity:.55}
 .phone .sf-bg1{fill:hsl(var(--h) 50% 14% / .55)}
