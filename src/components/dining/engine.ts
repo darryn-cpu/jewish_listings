@@ -144,6 +144,9 @@ const TEST_PHOTOS = [
   ["burger & brew", "/test/burger-brew.jpg", "center top"],
   ["moishes butchery", "/test/moishes-butchery.jpg?v=2", "center center"],
   ["corner cafe", "/test/corner-cafe.jpg", "center 40%"],
+  ["bagel zone", "/test/bagel-zone.jpg?v=3", "center top"],
+  ["frangelicas", "/test/frangelicas.jpg?v=2", "center center"],
+  ["friends bakery", "/test/friends-bakery.jpg", "center 34%"],
 ];
 function testPhoto(b) {
   const nm = String(b.name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
